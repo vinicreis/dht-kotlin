@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProtobufLanguageSettings">
+    <option name="importPathEntries">
+      <list>
+        <ImportPathEntry>
+          <option name="location" value="file://$PROJECT_DIR$/dht/core/grpc/src/main/proto/io/github/vinicreis/dht/core/model" />
+        </ImportPathEntry>
+        <ImportPathEntry>
+          <option name="location" value="file://$PROJECT_DIR$/dht/core/grpc/src/main/proto" />
+        </ImportPathEntry>
+        <ImportPathEntry>
+          <option name="location" value="file://$PROJECT_DIR$/dht/core/grpc/src/main/proto" />
+        </ImportPathEntry>
+        <ImportPathEntry>
+          <option name="location" value="file://$PROJECT_DIR$/dht/core/proto/src/main/proto/io/github/vinicreis/dht/core/model" />
+        </ImportPathEntry>
+        <ImportPathEntry>
+          <option name="location" value="file://$PROJECT_DIR$/dht/core/proto/src/main/proto/io/github/vinicreis/dht/core/model" />
+        </ImportPathEntry>
+        <ImportPathEntry>
+          <option name="location" value="file://$PROJECT_DIR$/dht/core/proto/src/main/proto/io/github/vinicreis/dht/core/model" />
+        </ImportPathEntry>
+      </list>
+    </option>
+  </component>
+</project>

@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package io.github.vinicreis.dht.core.model.response;
+
+import "io/github/vinicreis/dht/core/model/node.proto";
+import "io/github/vinicreis/dht/core/model/result.proto";
+
+message NewNodeResponse {
+  Result result = 1;
+  optional Node previous = 2;
+}

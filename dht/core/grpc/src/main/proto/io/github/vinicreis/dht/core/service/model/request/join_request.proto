@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package io.github.vinicreis.dht.core.model.request;
+
+import "io/github/vinicreis/dht/core/model/node.proto";
+
+message JoinRequest {
+  Node node = 1;
+}

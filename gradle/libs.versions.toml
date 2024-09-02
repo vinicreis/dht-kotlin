@@ -1,0 +1,38 @@
+[versions]
+app = "1.0.0"
+kotlin = "2.0.20"
+kotlinx-coroutines = "1.9.0-RC.2"
+kotlinx-datetime = "0.6.0"
+kotlinx-serialization = "1.7.1"
+protobuf-plugin = "0.9.4"
+protobuf-compiler = "4.27.3"
+grpc-core = "1.66.0"
+grpc-kotlin = "1.4.1"
+
+junit = "5.8.0"
+mockk = "1.13.12"
+
+[plugins]
+convention-java-application = { id = "io.github.vinicreis.build.convention.java.application", version = "unspecified" }
+convention-java-library = { id = "io.github.vinicreis.build.convention.java.library", version = "unspecified" }
+convention-kotlin-jvm = { id = "io.github.vinicreis.build.convention.kotlin.jvm", version = "unspecified" }
+convention-protobuf = { id = "io.github.vinicreis.build.convention.protobuf", version = "unspecified" }
+convention-grpc = { id = "io.github.vinicreis.build.convention.grpc", version = "unspecified" }
+
+[libraries]
+kotlin-jvm = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
+kotlin-serialization = { group = "org.jetbrains.kotlin", name = "kotlin-serialization", version.ref = "kotlin" }
+kotlinx-datetime = { group = "org.jetbrains.kotlinx", name = "kotlinx-datetime", version.ref = "kotlinx-datetime" }
+kotlinx-serialization-protobuf = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-protobuf", version.ref = "kotlinx-serialization" }
+kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+google-protobuf-plugin = { group = "com.google.protobuf", name = "protobuf-gradle-plugin", version.ref = "protobuf-plugin" }
+google-protobuf-kotlin = { group = "com.google.protobuf", name = "protobuf-kotlin", version.ref = "protobuf-compiler" }
+grpc-okhttp = { group = "io.grpc", name = "grpc-okhttp", version.ref = "grpc-core" }
+grpc-protobuf = { group = "io.grpc", name = "grpc-protobuf", version.ref = "grpc-core" }
+grpc-kotlin-stub = { group = "io.grpc", name = "grpc-kotlin-stub", version.ref = "grpc-kotlin" }
+google-gson = { group = "com.google.code.gson", name = "gson", version = "2.11.0" }
+
+junit-bom = { group = "org.junit", name = "junit-bom", version.ref = "junit" }
+junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junit" }
+mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }

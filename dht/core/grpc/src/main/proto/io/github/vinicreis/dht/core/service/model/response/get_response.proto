@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package io.github.vinicreis.dht.core.model.response;
+
+import "io/github/vinicreis/dht/core/model/result.proto";
+
+message GetResponse {
+  Result result = 1;
+  bytes key = 2;
+}

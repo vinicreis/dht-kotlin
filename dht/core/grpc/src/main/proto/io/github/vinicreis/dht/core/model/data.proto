@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package io.github.vinicreis.dht.core.model;
+
+import "io/github/vinicreis/dht/core/model/data_type.proto";
+
+message Data {
+  DataType type = 1;
+  bytes content = 2;
+}

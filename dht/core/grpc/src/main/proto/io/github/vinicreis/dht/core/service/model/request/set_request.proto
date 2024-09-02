@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package io.github.vinicreis.dht.core.model.request;
+
+import "io/github/vinicreis/dht/core/model/node.proto";
+import "io/github/vinicreis/dht/core/model/data.proto";
+
+message SetRequest {
+  Node node = 1;
+  bytes key = 2;
+  Data data = 3;
+}

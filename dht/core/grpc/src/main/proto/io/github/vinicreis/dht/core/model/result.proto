@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package io.github.vinicreis.dht.core.model;
+
+enum Result {
+  SUCCESS = 0;
+  FAIL = 1;
+  EXCEPTION = 2;
+}
