@@ -1,6 +1,9 @@
 package io.github.vinicreis.dht.core.grpc.infra.service
 
+import io.github.vinicreis.dht.core.grpc.domain.strategy.NodeStubStrategy
 import io.github.vinicreis.dht.core.grpc.domain.service.DHTServiceGrpc
+import io.github.vinicreis.dht.core.grpc.domain.strategy.HashStrategy
+import io.github.vinicreis.dht.core.grpc.infra.extensions.from
 import io.github.vinicreis.dht.core.grpc.infra.mapper.asDomain
 import io.github.vinicreis.dht.core.model.ResultOuterClass
 import io.github.vinicreis.dht.core.model.ResultOuterClass.Result
@@ -39,9 +42,11 @@ import io.github.vinicreis.dht.core.service.DHTServiceGrpcKt.DHTServiceCoroutine
 import io.github.vinicreis.dht.core.service.domain.DHTClient
 import io.github.vinicreis.dht.core.service.domain.DHTService
 import io.github.vinicreis.dht.core.service.domain.model.Node
-import io.github.vinicreis.dht.core.service.domain.model.hash
+import io.grpc.Grpc
+import io.grpc.InsecureServerCredentials
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import java.util.logging.Logger
@@ -50,34 +55,52 @@ import kotlin.coroutines.CoroutineContext
 internal class DHTServiceGrpcServerImpl(
     override val info: Node,
     private val knownNodes: List<Node>,
+    private val nodeStubStrategy: NodeStubStrategy,
     private val logger: Logger = Logger.getLogger(DHTServiceGrpcServerImpl::class.simpleName),
+    private val hashStrategy: HashStrategy,
     coroutineContext: CoroutineContext,
 ) :
-    DHTService, DHTServiceGrpc,
-    DHTClient by DHTServiceGrpcClientImpl(coroutineContext),
+    DHTService,
+    DHTServiceGrpc,
+    DHTClient by DHTServiceGrpcClientImpl(coroutineContext, nodeStubStrategy),
     DHTServiceCoroutineImplBase(coroutineContext)
 {
-    private val responsibleFor = knownNodes.toMutableSet()
-    private val queue = AsyncQueueService(coroutineContext)
     override var next: Node? = null
     override var previous: Node? = null
     override val data: MutableMap<String, ByteArray> = mutableMapOf()
+    private val responsibleFor = knownNodes.toMutableSet()
+    private val queue = AsyncQueueService(coroutineContext)
     private val mutableEvents = MutableSharedFlow<DHTService.Event>()
+    override val events: Flow<DHTService.Event> = mutableEvents.asSharedFlow()
+    private val server = Grpc.newServerBuilderForPort(info.port.value, InsecureServerCredentials.create())
+        .addService(this)
+        .build()
 
-    fun start() {
+    override fun start() {
+        server.start()
         queue { join(knownNodes) }
+    }
+
+    override fun blockUntilShutdown() {
+        server.awaitTermination()
+    }
+
+    override fun shutdown() {
+        server.shutdown()
     }
 
     override suspend fun join(nodes: List<Node>) {
         mutableEvents.emit(DHTService.Event.JoinStarted)
 
         for (node in nodes) {
+            if(node == info) continue
+
             try {
                 val result = node.join(info)
 
                 if (result.isSuccess && result.getOrElse { false }) break
             } catch (e: Exception) {
-                logger.warning("Failed to join node $node")
+                logger.severe("Failed to join node $node: ${e.message}")
             }
         }
 
@@ -86,7 +109,7 @@ internal class DHTServiceGrpcServerImpl(
 
     override suspend fun leave() {
         queue { next?.leave(previous) }
-        queue { next?.transfer(info, data) }
+        with(hashStrategy) { queue { next?.transfer(info, data from next!!) } }
     }
 
     override suspend fun get(key: String): ByteArray? {
@@ -116,19 +139,20 @@ internal class DHTServiceGrpcServerImpl(
     }
 
     override suspend fun join(request: JoinRequest): JoinResponse {
+        logger.info("Received JOIN request...")
+
         return joinResponse {
             result = let {
                 try {
                     val newNode = request.node.asDomain
 
-                    when {
-                        responsibleFor.contains(newNode) -> {
-                            next = newNode
-                            responsibleFor.remove(newNode)
-                        }
-
-                        next != null -> queue { newNode.joinOk(info, previous) }
+                    if (responsibleFor.contains(newNode)) {
+                        next = newNode
+                        responsibleFor.remove(newNode)
                     }
+
+                    queue { newNode.joinOk(info, previous) }
+                    queue { with (hashStrategy) { newNode.transfer(info, data from newNode) } }
 
                     Result.SUCCESS
                 } catch (e: Exception) {
@@ -139,14 +163,15 @@ internal class DHTServiceGrpcServerImpl(
     }
 
     override suspend fun joinOk(request: JoinOkRequest): JoinOkResponse {
+        logger.info("Received JOIN_OK request...")
+
         return joinOkResponse {
             result = request.nextOrNull?.asDomain?.let { node ->
                 try {
                     next = node
                     previous = request.takeIf { it.hasPrevious() }?.previous?.asDomain
 
-                    queue { node.joinOk(info, previous) }
-                    queue { node.transfer(info, data) }
+                    queue { previous?.newNode(info) }
 
                     Result.SUCCESS
                 } catch (e: Exception) {
@@ -157,6 +182,8 @@ internal class DHTServiceGrpcServerImpl(
     }
 
     override suspend fun newNode(request: NewNodeRequest): NewNodeResponse {
+        logger.info("Received NEW_NODE request...")
+
         return newNodeResponse {
             result = let {
                 try {
@@ -171,6 +198,8 @@ internal class DHTServiceGrpcServerImpl(
     }
 
     override suspend fun nodeGone(request: NodeGoneRequest): NodeGoneResponse {
+        logger.info("Received NODE_GONE request...")
+
         return nodeGoneResponse {
             result = let {
                 try {
@@ -185,6 +214,8 @@ internal class DHTServiceGrpcServerImpl(
     }
 
     override suspend fun leave(request: LeaveRequest): LeaveResponse {
+        logger.info("Received LEAVE request...")
+
         return leaveResponse {
             result = let {
                 try {
@@ -199,6 +230,8 @@ internal class DHTServiceGrpcServerImpl(
     }
 
     override suspend fun get(request: GetRequest): GetResponse {
+        logger.info("Received GET request...")
+
         queue {
             val key = request.key.toStringUtf8()
 
@@ -217,12 +250,15 @@ internal class DHTServiceGrpcServerImpl(
     }
 
     override suspend fun set(request: SetRequest): SetResponse {
+        logger.info("Received SET request...")
+
         queue {
             val key = request.key.toStringUtf8()
 
             when {
                 isResponsableFor(key) -> data[key] = request.data.content.toByteArray()
-                next != null -> next!!.set(request.node.asDomain, key, request.data.content.toByteArray())
+                next == null -> error("Node should be responsible for this key or have a next node")
+                else -> next!!.set(request.node.asDomain, key, request.data.content.toByteArray())
             }
         }
 
@@ -230,6 +266,8 @@ internal class DHTServiceGrpcServerImpl(
     }
 
     override suspend fun found(request: FoundRequest): FoundResponse {
+        logger.info("Received FOUND request...")
+
         queue {
             mutableEvents.emit(
                 DHTService.Event.Found(request.key.toStringUtf8(), request.data.content.toByteArray())
@@ -240,6 +278,8 @@ internal class DHTServiceGrpcServerImpl(
     }
 
     override suspend fun notFound(request: NotFoundRequest): NotFoundResponse {
+        logger.info("Received FOUND request...")
+
         queue {
             mutableEvents.emit(
                 DHTService.Event.NotFound(request.key.toStringUtf8())
@@ -250,6 +290,8 @@ internal class DHTServiceGrpcServerImpl(
     }
 
     override suspend fun transfer(requests: Flow<TransferRequest>): TransferResponse {
+        logger.info("Received TRANSFER request...")
+
         queue {
             requests.collect { entry ->
                 data[entry.key.toStringUtf8()] = entry.data.content.toByteArray()
@@ -260,7 +302,6 @@ internal class DHTServiceGrpcServerImpl(
     }
 
     private fun isResponsableFor(key: String): Boolean {
-        return responsibleFor.any { it.id == key.hash }
+        return responsibleFor.any { it.id == hashStrategy(key) }
     }
 }
-

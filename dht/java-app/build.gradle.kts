@@ -3,6 +3,11 @@ plugins {
     alias(libs.plugins.convention.kotlin.jvm)
 }
 
+application {
+    applicationName = "dht-service"
+    mainClass.set("io.github.vinicreis.dht.app.java.MainKt")
+}
+
 dependencies {
     implementation(projects.dht.core.service)
     implementation(projects.dht.core.model)

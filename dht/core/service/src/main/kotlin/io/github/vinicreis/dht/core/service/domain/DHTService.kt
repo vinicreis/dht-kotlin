@@ -1,6 +1,7 @@
 package io.github.vinicreis.dht.core.service.domain
 
 import io.github.vinicreis.dht.core.service.domain.model.Node
+import kotlinx.coroutines.flow.Flow
 
 interface DHTService : DHTServer, DHTClient {
     sealed interface Event {
@@ -14,6 +15,8 @@ interface DHTService : DHTServer, DHTClient {
         data class NotFound(val key: String): ResultReceived
         data object Leaving : Event
     }
+
+    val events: Flow<Event>
 }
 
 interface DHTServer {
@@ -22,6 +25,9 @@ interface DHTServer {
     var previous: Node?
     val data: MutableMap<String, ByteArray>
 
+    fun start()
+    fun blockUntilShutdown()
+    fun shutdown()
     suspend fun join(nodes: List<Node>)
     suspend fun leave()
     suspend fun get(key: String): ByteArray?
