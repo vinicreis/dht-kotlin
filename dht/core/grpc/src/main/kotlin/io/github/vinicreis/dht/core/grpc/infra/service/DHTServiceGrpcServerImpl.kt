@@ -17,6 +17,7 @@ import io.github.vinicreis.dht.core.model.request.RemoveRequestOuterClass.Remove
 import io.github.vinicreis.dht.core.model.request.SetRequestOuterClass.SetRequest
 import io.github.vinicreis.dht.core.model.request.TransferRequestOuterClass.TransferRequest
 import io.github.vinicreis.dht.core.model.request.nextOrNull
+import io.github.vinicreis.dht.core.model.request.previousOrNull
 import io.github.vinicreis.dht.core.model.response.GetResponseOuterClass.GetResponse
 import io.github.vinicreis.dht.core.model.response.JoinOkResponseOuterClass.JoinOkResponse
 import io.github.vinicreis.dht.core.model.response.JoinResponseOuterClass.JoinResponse
@@ -52,7 +53,7 @@ import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
 import java.util.logging.Logger
 import kotlin.coroutines.CoroutineContext
-import kotlin.properties.Delegates.observable
+import kotlin.properties.Delegates.vetoable
 
 internal class DHTServiceGrpcServerImpl(
     override val info: Node,
@@ -70,15 +71,19 @@ internal class DHTServiceGrpcServerImpl(
     DHTServiceCoroutineImplBase(coroutineContext)
 {
     override val data: MutableMap<String, ByteArray> = mutableMapOf()
-    override var next: Node? by observable(null) { _, old, new ->
-        logger.info("Next node set from $old to $new")
+    override var next: Node? by vetoable(null) { _, old, new ->
+        logger.info("SET: next from $old to $new")
+
+        new != info
     }
 
-    override var previous: Node? by observable(null) { _, old, new ->
-        logger.info("Previous node set from $old to $new")
+    override var previous: Node? by vetoable(null) { _, old, new ->
+        logger.info("SET: previous from $old to $new")
+
+        new != info
     }
 
-    private val responsibleFor = knownNodes.toMutableSet()
+    private val responsibleForId = knownNodes.map { it.id }.toMutableSet()
     private val queue = AsyncQueueService(coroutineContext)
     private val mutableEvents = MutableSharedFlow<DHTService.Event>()
     override val events: Flow<DHTService.Event> = mutableEvents.asSharedFlow()
@@ -87,6 +92,7 @@ internal class DHTServiceGrpcServerImpl(
         .build()
 
     override fun start() {
+        logger.info("Starting $info...")
         server.start()
         queue { join(knownNodes) }
     }
@@ -130,19 +136,17 @@ internal class DHTServiceGrpcServerImpl(
                     Status.Code.RESOURCE_EXHAUSTED,
                     Status.Code.INTERNAL -> logger.info("Join failed by internal error ${e.status.code}")
                 }
-            } catch (e: Exception) {
-                logger.severe("Failed to join node $node: ${e.message}")
             }
         }
 
         mutableEvents.emit(DHTService.Event.Joined)
     }
 
-    // FIXME: Previous node is set ad itself
     override suspend fun leave() {
         next?.also { nextNode ->
             nextNode.leave(previous)
             nextNode.transfer(info, data from nextNode)
+            data removeFrom nextNode
             previous?.nodeGone(nextNode) ?: logger.info("No previous node to notify NODE_GONE")
         } ?: logger.info("No next node to notify LEAVE")
     }
@@ -152,23 +156,23 @@ internal class DHTServiceGrpcServerImpl(
 
         return joinResponse {
             result = let {
-                try {
-                    val newNode = request.node.asDomain
+                val newNode = request.node.asDomain
 
-                    if (responsibleFor.contains(newNode)) {
-                        next = newNode
-                        responsibleFor.remove(newNode)
-                    }
-
+                if (info isNotResponsibleFor newNode.id) {
                     queue {
-                        newNode.joinOk(info, previous)
-                        newNode.transfer(info, data from newNode)
+                        next?.join(newNode) ?: error("Next node should be set if $info is not responsible for $newNode")
                     }
-
-                    Result.SUCCESS
-                } catch (e: Exception) {
-                    Result.FAIL
+                } else {
+                    queue {
+                        newNode.joinOk(info, previous ?: info)
+                        newNode.transfer(info, data from newNode)
+                        data removeFrom newNode
+                        responsibleForId.remove(newNode.id)
+                        previous = newNode
+                    }
                 }
+
+                Result.SUCCESS
             }
         }
     }
@@ -178,16 +182,12 @@ internal class DHTServiceGrpcServerImpl(
 
         return joinOkResponse {
             result = request.nextOrNull?.asDomain?.let { node ->
-                try {
-                    next = node
-                    previous = request.takeIf { it.hasPrevious() }?.previous?.asDomain
+                next = node
+                previous = request.previousOrNull?.asDomain
 
-                    queue { previous?.newNode(info) }
+                queue { previous?.newNode(info) }
 
-                    Result.SUCCESS
-                } catch (e: Exception) {
-                    Result.FAIL
-                }
+                Result.SUCCESS
             } ?: Result.FAIL
         }
     }
@@ -197,13 +197,9 @@ internal class DHTServiceGrpcServerImpl(
 
         return newNodeResponse {
             result = let {
-                try {
-                    next = request.node.asDomain
+                next = request.node.asDomain
 
-                    Result.SUCCESS
-                } catch (e: Exception) {
-                    Result.FAIL
-                }
+                Result.SUCCESS
             }
         }
     }
@@ -213,13 +209,9 @@ internal class DHTServiceGrpcServerImpl(
 
         return nodeGoneResponse {
             result = let {
-                try {
-                    next = request.next.asDomain
+                next = request.next.asDomain
 
-                    Result.SUCCESS
-                } catch (e: Exception) {
-                    Result.FAIL
-                }
+                Result.SUCCESS
             }
         }
     }
@@ -229,13 +221,9 @@ internal class DHTServiceGrpcServerImpl(
 
         return leaveResponse {
             result = let {
-                try {
-                    previous = request.previous.asDomain
+                previous = request.previousOrNull?.asDomain
 
-                    Result.SUCCESS
-                } catch (e: Exception) {
-                    Result.FAIL
-                }
+                Result.SUCCESS
             }
         }
     }
@@ -247,7 +235,7 @@ internal class DHTServiceGrpcServerImpl(
             val key = request.key.toStringUtf8()
 
             when {
-                info isResponsibleFor key -> {
+                info isResponsibleFor hashStrategy(key) -> {
                     data[key]?.let { bytes ->
                         request.node.asDomain.found(key, bytes)
                     } ?: request.node.asDomain.notFound(key)
@@ -267,7 +255,7 @@ internal class DHTServiceGrpcServerImpl(
             val key = request.key.toStringUtf8()
 
             when {
-                info isResponsibleFor key -> data[key] = request.data.content.toByteArray()
+                info isResponsibleFor hashStrategy(key) -> data[key] = request.data.content.toByteArray()
                 next == null -> error("Node should be responsible for this key or have a next node")
                 else -> next!!.set(request.node.asDomain, key, request.data.content.toByteArray())
             }
@@ -283,10 +271,10 @@ internal class DHTServiceGrpcServerImpl(
             val key = request.key.toStringUtf8()
 
             when {
-                info isResponsibleFor key -> data.remove(key)?.let {
+                info isResponsibleFor hashStrategy(key) -> data.remove(key)?.let {
                     request.node.asDomain.found(key, it)
                 } ?: request.node.asDomain.notFound(key)
-                next == null -> error("Node should be responsible for this key or have a next node")
+                next == null -> error("$info should be responsible for this key or have a next node")
                 else -> next!!.remove(request.node.asDomain, key)
             }
         }
@@ -302,18 +290,24 @@ internal class DHTServiceGrpcServerImpl(
                 .onStart { logger.info("Collecting transfer requests...") }
                 .onCompletion { logger.info("Transfer requests collection finished!") }
                 .collect { request ->
-                    val key = request.key.toStringUtf8()
-
-                    logger.info("Receiving key $key from ${request.node.asDomain}")
-
-                    data[key] = request.data.content.toByteArray()
+                    data[request.key.toStringUtf8()] = request.data.content.toByteArray()
                 }
         }
 
         return transferResponse { result = Result.SUCCESS }
     }
 
-    private infix fun Node.isResponsibleFor(key: String): Boolean {
-        return responsibleFor.any { it.id == hashStrategy(key) }
+    private infix fun <V> MutableMap<String, V>.removeFrom(node: Node) {
+        keys.asSequence()
+            .filter { key -> node isResponsibleFor hashStrategy(key) }
+            .forEach { key -> remove(key) }
+    }
+
+    private infix fun Node.isResponsibleFor(nodeId: Long): Boolean {
+        return responsibleForId.any { id -> id == nodeId }
+    }
+
+    private infix fun Node.isNotResponsibleFor(nodeId: Long): Boolean {
+        return (this isResponsibleFor nodeId).not()
     }
 }

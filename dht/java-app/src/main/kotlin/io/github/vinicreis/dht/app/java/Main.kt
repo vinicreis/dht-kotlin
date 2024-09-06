@@ -40,5 +40,4 @@ fun main(args: Array<String>) {
     service.start()
     println("Press ENTER to leave...")
     readlnOrNull()
-    runBlocking { service.leave() }
 }

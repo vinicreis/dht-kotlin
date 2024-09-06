@@ -18,7 +18,6 @@ import io.github.vinicreis.dht.core.model.request.transferRequest
 import io.github.vinicreis.dht.core.service.domain.DHTServiceServerStub
 import io.github.vinicreis.dht.model.service.Node
 import kotlinx.coroutines.flow.channelFlow
-import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.withContext
 import java.util.logging.Logger
 import kotlin.coroutines.CoroutineContext
@@ -31,9 +30,9 @@ internal class DHTServiceServerStubImpl(
     DHTServiceServerStub,
     NodeStubStrategy by nodeStubStrategy {
     override suspend fun Node.join(info: Node): Result<Boolean> {
-        return withContext(coroutineContext) {
-            logger.info("Sending JOIN to $id")
+        logger.info("Sending JOIN to $this")
 
+        return withContext(coroutineContext) {
             withServerStub {
                 join(
                     joinRequest { this.node = info.asGrpc }
@@ -51,9 +50,9 @@ internal class DHTServiceServerStubImpl(
     }
 
     override suspend fun Node.joinOk(next: Node, previous: Node?) {
-        withContext(coroutineContext) {
-            logger.info("Sending JOINOK to $id")
+        logger.info("Sending JOINOK to $this")
 
+        withContext(coroutineContext) {
             withServerStub {
                 joinOk(
                     joinOkRequest {
@@ -66,12 +65,13 @@ internal class DHTServiceServerStubImpl(
     }
 
     override suspend fun Node.leave(previous: Node?) {
-        withContext(coroutineContext) {
-            logger.info("Sending LEAVE to $id")
+        logger.info("Sending LEAVE to $this")
 
+        withContext(coroutineContext) {
             withServerStub {
                 leave(
                     leaveRequest {
+                        node = this@leave.asGrpc
                         previous?.also { this.previous = it.asGrpc }
                     }
                 )
@@ -80,9 +80,9 @@ internal class DHTServiceServerStubImpl(
     }
 
     override suspend fun Node.newNode(next: Node) {
-        withContext(coroutineContext) {
-            logger.info("Sending NEW_NODE to $id")
+        logger.info("Sending NEW_NODE to $this")
 
+        withContext(coroutineContext) {
             withServerStub {
                 newNode(
                     newNodeRequest { this.node = next.asGrpc }
@@ -92,9 +92,9 @@ internal class DHTServiceServerStubImpl(
     }
 
     override suspend fun Node.nodeGone(next: Node?) {
-        withContext(coroutineContext) {
-            logger.info("Sending NODE_GONE to $id")
+        logger.info("Sending NODE_GONE to $this")
 
+        withContext(coroutineContext) {
             withServerStub {
                 nodeGone(
                     nodeGoneRequest {
@@ -106,9 +106,9 @@ internal class DHTServiceServerStubImpl(
     }
 
     override suspend fun Node.set(node: Node, key: String, value: ByteArray) {
-        withContext(coroutineContext) {
-            logger.info("Sending SET to $id")
+        logger.info("Sending SET to $this")
 
+        withContext(coroutineContext) {
             withServerStub {
                 set(
                     setRequest {
@@ -125,9 +125,9 @@ internal class DHTServiceServerStubImpl(
     }
 
     override suspend fun Node.get(node: Node, key: String) {
-        withContext(coroutineContext) {
-            logger.info("Sending GET to $id")
+        logger.info("Sending GET to $this")
 
+        withContext(coroutineContext) {
             withServerStub {
                 get(
                     getRequest {
@@ -140,9 +140,9 @@ internal class DHTServiceServerStubImpl(
     }
 
     override suspend fun Node.remove(node: Node, key: String) {
-        withContext(coroutineContext) {
-            logger.info("Sending REMOVE to $id")
+        logger.info("Sending REMOVE to $this")
 
+        withContext(coroutineContext) {
             withServerStub {
                 remove(
                     removeRequest {
@@ -156,15 +156,13 @@ internal class DHTServiceServerStubImpl(
     }
 
     override suspend fun Node.transfer(info: Node, data: Map<String, ByteArray>) {
-        withContext(coroutineContext) {
-            logger.info("Sending TRANSFER to $id")
+        logger.info("Sending TRANSFER to $this")
 
+        withContext(coroutineContext) {
             withServerStub {
                 transfer(
                     channelFlow {
                         data.iterator().forEach { data ->
-                            logger.info("Sending data with key ${data.key} to $id")
-
                             send(
                                 transferRequest {
                                     this.node = info.asGrpc
@@ -176,7 +174,7 @@ internal class DHTServiceServerStubImpl(
                                 }
                             )
 
-                            logger.info("Data with key ${data.key} sent to $id")
+                            close()
                         }
                     }
                 )

@@ -3,8 +3,8 @@ syntax = "proto3";
 package io.github.vinicreis.dht.core.model.request;
 
 import "io/github/vinicreis/dht/core/model/node.proto";
-import "io/github/vinicreis/dht/core/model/data.proto";
 
 message LeaveRequest {
-  Node previous = 1;
+  Node node = 1;
+  Node previous = 2;
 }
