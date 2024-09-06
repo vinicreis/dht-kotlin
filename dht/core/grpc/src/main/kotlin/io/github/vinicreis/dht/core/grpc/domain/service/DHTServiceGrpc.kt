@@ -30,24 +30,15 @@ import java.io.InputStream
 import java.util.logging.Logger
 import kotlin.coroutines.CoroutineContext
 
-private const val HOSTS_FILE = "hosts.json"
-
-private val hostsFile: InputStream
-    get() = {}.javaClass.classLoader.getResourceAsStream(HOSTS_FILE)
-        ?: error("Hosts file not found")
-
-private fun getHosts(): List<Node> {
-    return Gson().fromJson<Array<Node>?>(hostsFile.reader(), TypeToken.getArray(Node::class.java).type).toList()
-}
-
 fun DHTServiceGrpc(
     info: Node,
     hashStrategy: HashStrategy,
     coroutineContext: CoroutineContext,
+    knownNodes: List<Node>,
     logger: Logger,
 ): DHTService = DHTServiceGrpcServerImpl(
     info = info,
-    knownNodes = getHosts(),
+    knownNodes = knownNodes,
     coroutineContext = coroutineContext,
     hashStrategy = hashStrategy,
     nodeStubStrategy = NodeStubStrategyGrpc(),

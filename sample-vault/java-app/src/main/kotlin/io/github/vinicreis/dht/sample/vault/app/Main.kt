@@ -1,5 +1,7 @@
 package io.github.vinicreis.dht.sample.vault.app
 
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import io.github.vinicreis.dht.model.service.Address
 import io.github.vinicreis.dht.model.service.Node
 import io.github.vinicreis.dht.model.service.Port
@@ -10,6 +12,7 @@ import io.github.vinicreis.dht.sample.vault.model.Secret
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import java.io.InputStream
 import java.util.logging.Logger
 import kotlin.concurrent.thread
 import kotlin.system.exitProcess
@@ -25,11 +28,7 @@ fun main() {
     }
 
     val service = VaultServiceImpl(
-        server = Node(
-            id = 2L,
-            address = Address("localhost"),
-            port = Port(10092),
-        ),
+        servers = getHosts(),
         client = Node(
             id = 1L,
             address = Address("localhost"),
@@ -39,7 +38,7 @@ fun main() {
     ).apply { start() }
 
     Runtime.getRuntime().addShutdownHook(
-        thread(start = false) { service.shutdown() }
+        thread(start = false, name = "Shutdown-Thread") { service.shutdown() }
     )
 
     // TODO: Delete after development
@@ -55,12 +54,24 @@ fun main() {
     }
 }
 
+private const val HOSTS_FILE = "hosts.json"
+
+private val hostsFile: InputStream
+    get() = {}.javaClass.classLoader.getResourceAsStream(HOSTS_FILE)
+        ?: error("Hosts file not found")
+
+private fun getHosts(): List<Node> {
+    return Gson().fromJson<Array<Node>?>(hostsFile.reader(), TypeToken.getArray(Node::class.java).type).toList()
+}
+
 @Deprecated("Delete after development")
 private fun setInitialData(service: VaultService) {
     runBlocking {
         service.set(Secret("1", "ola"))
         service.set(Secret("2", "mundo"))
         service.set(Secret("3", "mundao"))
+        service.set(Secret("uaisho", "Outra senha"))
+        service.set(Secret("8", "Nova info"))
     }
 }
 

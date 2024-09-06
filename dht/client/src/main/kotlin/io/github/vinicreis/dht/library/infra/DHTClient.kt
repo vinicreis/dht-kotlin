@@ -17,16 +17,18 @@ import io.github.vinicreis.dht.core.model.response.NotFoundResponseOuterClass.No
 import io.github.vinicreis.dht.core.model.response.foundResponse
 import io.github.vinicreis.dht.core.model.response.notFoundResponse
 import io.github.vinicreis.dht.core.service.DHTServiceClientGrpcKt
+import io.github.vinicreis.dht.core.service.DHTServiceGrpcKt.DHTServiceCoroutineStub
 import io.github.vinicreis.dht.library.domain.DHT
 import io.github.vinicreis.dht.model.service.Node
 import io.grpc.Grpc
 import io.grpc.InsecureServerCredentials
 import kotlinx.coroutines.channels.Channel
+import java.net.ConnectException
 import kotlin.coroutines.CoroutineContext
 
 class DHTClient(
     private val info: Node,
-    private val dhtServer: Node,
+    private val servers: List<Node>,
     coroutineContext: CoroutineContext,
 ) :
     DHT,
@@ -47,7 +49,7 @@ class DHTClient(
     }
 
     override suspend fun get(key: String): ByteArray? {
-        return dhtServer.withServerStub {
+        return withFirstAvailableServer {
             get(getRequest {
                 node = info.asGrpc
                 this.key = key.asByteString
@@ -58,7 +60,7 @@ class DHTClient(
     }
 
     override suspend fun set(key: String, value: ByteArray) {
-        dhtServer.withServerStub {
+        withFirstAvailableServer {
             set(
                 setRequest {
                     node = info.asGrpc
@@ -73,7 +75,7 @@ class DHTClient(
     }
 
     override suspend fun remove(key: String): ByteArray? {
-        return dhtServer.withServerStub {
+        return withFirstAvailableServer {
             remove(
                 removeRequest {
                     node = info.asGrpc
@@ -95,5 +97,15 @@ class DHTClient(
         messages.send(null)
 
         return notFoundResponse { result = ResultOuterClass.Result.SUCCESS }
+    }
+
+    private suspend fun <T> withFirstAvailableServer(block: suspend DHTServiceCoroutineStub.() -> T): T {
+        try {
+            servers.forEach { server -> return server.withServerStub(block) }
+        } catch (e: ConnectException) {
+            // TODO: Add log
+        }
+
+        throw IllegalStateException("No available DHT server found")
     }
 }

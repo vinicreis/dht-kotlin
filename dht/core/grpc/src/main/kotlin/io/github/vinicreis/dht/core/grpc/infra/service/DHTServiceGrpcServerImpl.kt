@@ -3,7 +3,6 @@ package io.github.vinicreis.dht.core.grpc.infra.service
 import io.github.vinicreis.dht.core.grpc.domain.service.DHTServiceGrpc
 import io.github.vinicreis.dht.core.grpc.domain.strategy.HashStrategy
 import io.github.vinicreis.dht.core.grpc.domain.strategy.NodeStubStrategy
-import io.github.vinicreis.dht.core.grpc.infra.extensions.from
 import io.github.vinicreis.dht.core.grpc.infra.mapper.asDomain
 import io.github.vinicreis.dht.core.model.ResultOuterClass
 import io.github.vinicreis.dht.core.model.ResultOuterClass.Result
@@ -51,6 +50,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
+import java.util.concurrent.ConcurrentHashMap
 import java.util.logging.Logger
 import kotlin.coroutines.CoroutineContext
 import kotlin.properties.Delegates.vetoable
@@ -67,10 +67,9 @@ internal class DHTServiceGrpcServerImpl(
     DHTServiceGrpc,
     DHTServiceServerStub by DHTServiceServerStubImpl(coroutineContext, nodeStubStrategy),
     DHTServiceClientStub by DHTServiceClientStubImpl(coroutineContext, nodeStubStrategy),
-    HashStrategy by hashStrategy,
     DHTServiceCoroutineImplBase(coroutineContext)
 {
-    override val data: MutableMap<String, ByteArray> = mutableMapOf()
+    override val data: MutableMap<String, ByteArray> = ConcurrentHashMap()
     override var next: Node? by vetoable(null) { _, old, new ->
         val allowChange = new == null || new != info
 
@@ -150,7 +149,7 @@ internal class DHTServiceGrpcServerImpl(
     override suspend fun leave() {
         next?.also { nextNode ->
             nextNode.leave(info, previous)
-            nextNode.transfer(info, data from nextNode)
+            nextNode.transfer(info, data)
             previous?.nodeGone(nextNode.takeIf { it != previous })
         }
     }
@@ -163,7 +162,7 @@ internal class DHTServiceGrpcServerImpl(
                 val newNode = request.node.asDomain
 
                 queue {
-                    if (info isNotResponsibleFor newNode.id) {
+                    if (info isNotResponsibleFor newNode) {
                         next?.join(newNode) ?: error("Next node should be set if $info is not responsible for $newNode")
                     } else {
                         newNode.joinOk(info, previous ?: info)
@@ -188,6 +187,10 @@ internal class DHTServiceGrpcServerImpl(
                 previous = request.previousOrNull?.asDomain
 
                 queue { previous?.newNode(info) }
+                responsibleForId.apply {
+                    clear()
+                    add(info.id)
+                }
 
                 Result.SUCCESS
             } ?: Result.FAIL
@@ -234,13 +237,13 @@ internal class DHTServiceGrpcServerImpl(
             val key = request.key.toStringUtf8()
 
             when {
-                info isResponsibleFor hashStrategy(key) -> {
+                info isResponsibleFor key -> {
                     data[key]?.let { bytes ->
                         request.node.asDomain.found(key, bytes)
                     } ?: request.node.asDomain.notFound(key)
                 }
-
-                next != null -> next!!.get(request.node.asDomain, key)
+                next == null -> error("$info should be responsible for this key or have a next node")
+                else -> next!!.get(request.node.asDomain, key)
             }
         }
 
@@ -254,7 +257,7 @@ internal class DHTServiceGrpcServerImpl(
             val key = request.key.toStringUtf8()
 
             when {
-                info isResponsibleFor hashStrategy(key) -> data[key] = request.data.content.toByteArray()
+                info isResponsibleFor key -> data[key] = request.data.content.toByteArray()
                 next == null -> error("Node should be responsible for this key or have a next node")
                 else -> next!!.set(request.node.asDomain, key, request.data.content.toByteArray())
             }
@@ -270,7 +273,7 @@ internal class DHTServiceGrpcServerImpl(
             val key = request.key.toStringUtf8()
 
             when {
-                info isResponsibleFor hashStrategy(key) -> data.remove(key)?.let {
+                info isResponsibleFor key -> data.remove(key)?.let {
                     request.node.asDomain.found(key, it)
                 } ?: request.node.asDomain.notFound(key)
                 next == null -> error("$info should be responsible for this key or have a next node")
@@ -287,7 +290,7 @@ internal class DHTServiceGrpcServerImpl(
         coroutineScope {
             requests
                 .onStart { logger.info("Collecting transfer requests...") }
-                .onCompletion { logger.info("Transfer requests collection finished!") }
+                .onCompletion { logger.info("Transfer requests collection finished!\nNow responsible for keys ${data.keys}") }
                 .collect { request ->
                     data[request.key.toStringUtf8()] = request.data.content.toByteArray()
                 }
@@ -296,17 +299,27 @@ internal class DHTServiceGrpcServerImpl(
         return transferResponse { result = Result.SUCCESS }
     }
 
+    private infix fun Map<String, ByteArray>.from(node: Node) = filter { entry -> hashStrategy(entry.key) == node.id }
+
     private infix fun <V> MutableMap<String, V>.removeFrom(node: Node) {
         keys.asSequence()
-            .filter { key -> node isResponsibleFor hashStrategy(key) }
-            .forEach { key -> remove(key) }
+            .filter { key -> key belongsTo node }
+            .forEach { key -> remove(key)?.let { logger.info("Removed key $key") } }
     }
 
-    private infix fun Node.isResponsibleFor(nodeId: Long): Boolean {
-        return responsibleForId.any { id -> id == nodeId }
+    private infix fun String.belongsTo(node: Node): Boolean {
+        return node.id == hashStrategy(this)
     }
 
-    private infix fun Node.isNotResponsibleFor(nodeId: Long): Boolean {
-        return (this isResponsibleFor nodeId).not()
+    private infix fun Node.isResponsibleFor(key: String): Boolean {
+        return responsibleForId.any { id -> id == hashStrategy(key) }
+    }
+
+    private infix fun Node.isResponsibleFor(node: Node): Boolean {
+        return responsibleForId.any { id -> id == node.id }
+    }
+
+    private infix fun Node.isNotResponsibleFor(node: Node): Boolean {
+        return (this isResponsibleFor node).not()
     }
 }

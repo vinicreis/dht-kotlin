@@ -18,6 +18,7 @@ import io.github.vinicreis.dht.core.model.request.transferRequest
 import io.github.vinicreis.dht.core.service.domain.DHTServiceServerStub
 import io.github.vinicreis.dht.model.service.Node
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import java.util.logging.Logger
 import kotlin.coroutines.CoroutineContext
@@ -161,9 +162,9 @@ internal class DHTServiceServerStubImpl(
         withContext(coroutineContext) {
             withServerStub {
                 transfer(
-                    channelFlow {
+                    flow {
                         data.iterator().forEach { data ->
-                            send(
+                            emit(
                                 transferRequest {
                                     this.node = info.asGrpc
                                     key = data.key.asByteString
@@ -173,8 +174,6 @@ internal class DHTServiceServerStubImpl(
                                     }
                                 }
                             )
-
-                            close()
                         }
                     }
                 )

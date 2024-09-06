@@ -6,13 +6,13 @@ import io.github.vinicreis.dht.sample.vault.model.Secret
 import kotlin.coroutines.CoroutineContext
 
 class VaultServiceImpl(
-    server: Node,
+    servers: List<Node>,
     client: Node,
     coroutineContext: CoroutineContext,
 ) : VaultService {
     private val service = DHTClient(
         info = client,
-        dhtServer = server,
+        servers = servers,
         coroutineContext = coroutineContext,
     )
 
