@@ -12,11 +12,13 @@ import io.github.vinicreis.dht.core.model.request.joinRequest
 import io.github.vinicreis.dht.core.model.request.leaveRequest
 import io.github.vinicreis.dht.core.model.request.newNodeRequest
 import io.github.vinicreis.dht.core.model.request.nodeGoneRequest
+import io.github.vinicreis.dht.core.model.request.removeRequest
 import io.github.vinicreis.dht.core.model.request.setRequest
 import io.github.vinicreis.dht.core.model.request.transferRequest
 import io.github.vinicreis.dht.core.service.domain.DHTServiceServerStub
 import io.github.vinicreis.dht.model.service.Node
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.withContext
 import java.util.logging.Logger
 import kotlin.coroutines.CoroutineContext
@@ -27,15 +29,16 @@ internal class DHTServiceServerStubImpl(
     private val logger: Logger = Logger.getLogger(DHTServiceGrpcServerImpl::class.java.simpleName)
 ) :
     DHTServiceServerStub,
-    NodeStubStrategy by nodeStubStrategy
-{
+    NodeStubStrategy by nodeStubStrategy {
     override suspend fun Node.join(info: Node): Result<Boolean> {
         return withContext(coroutineContext) {
             logger.info("Sending JOIN to $id")
 
             withServerStub {
-                join(joinRequest { this.node = info.asGrpc }).let {
-                    when(it.result) {
+                join(
+                    joinRequest { this.node = info.asGrpc }
+                ).let {
+                    when (it.result) {
                         null -> Result.success(false)
                         ResultOuterClass.Result.UNRECOGNIZED -> Result.success(false)
                         ResultOuterClass.Result.FAIL -> Result.success(false)
@@ -55,7 +58,7 @@ internal class DHTServiceServerStubImpl(
                 joinOk(
                     joinOkRequest {
                         this.next = next.asGrpc
-                        previous?.let { this.previous = it.asGrpc }
+                        previous?.also { this.previous = it.asGrpc }
                     }
                 )
             }
@@ -69,7 +72,7 @@ internal class DHTServiceServerStubImpl(
             withServerStub {
                 leave(
                     leaveRequest {
-                        previous?.let { this.previous = it.asGrpc }
+                        previous?.also { this.previous = it.asGrpc }
                     }
                 )
             }
@@ -136,6 +139,22 @@ internal class DHTServiceServerStubImpl(
         }
     }
 
+    override suspend fun Node.remove(node: Node, key: String) {
+        withContext(coroutineContext) {
+            logger.info("Sending REMOVE to $id")
+
+            withServerStub {
+                remove(
+                    removeRequest {
+                        this.node = node.asGrpc
+                        this.key = key.asByteString
+                        this.key = key.asByteString
+                    }
+                )
+            }
+        }
+    }
+
     override suspend fun Node.transfer(info: Node, data: Map<String, ByteArray>) {
         withContext(coroutineContext) {
             logger.info("Sending TRANSFER to $id")
@@ -144,6 +163,8 @@ internal class DHTServiceServerStubImpl(
                 transfer(
                     channelFlow {
                         data.iterator().forEach { data ->
+                            logger.info("Sending data with key ${data.key} to $id")
+
                             send(
                                 transferRequest {
                                     this.node = info.asGrpc
@@ -154,9 +175,9 @@ internal class DHTServiceServerStubImpl(
                                     }
                                 }
                             )
-                        }
 
-                        close()
+                            logger.info("Data with key ${data.key} sent to $id")
+                        }
                     }
                 )
             }

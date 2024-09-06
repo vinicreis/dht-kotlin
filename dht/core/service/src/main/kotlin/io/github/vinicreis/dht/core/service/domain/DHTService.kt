@@ -41,6 +41,7 @@ interface DHTServiceServerStub {
     suspend fun Node.transfer(info: Node, data: Map<String, ByteArray>)
     suspend fun Node.get(node: Node, key: String)
     suspend fun Node.set(node: Node, key: String, value: ByteArray)
+    suspend fun Node.remove(node: Node, key: String)
 }
 
 interface DHTServiceClientStub {

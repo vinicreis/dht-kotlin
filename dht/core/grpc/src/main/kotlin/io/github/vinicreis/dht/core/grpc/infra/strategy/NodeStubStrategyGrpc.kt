@@ -22,11 +22,10 @@ class NodeStubStrategyGrpc : NodeStubStrategy {
         return channel.use { block(DHTServiceClientCoroutineStub(it)) }
     }
 
-    private suspend fun <T> ManagedChannel.use(block: suspend (ManagedChannel) -> T): T {
-        val result = block(this)
-
-        shutdown()
-
-        return result
-    }
+    private suspend fun <T> ManagedChannel.use(block: suspend (ManagedChannel) -> T): T =
+        try {
+            block(this)
+        } finally {
+            shutdown()
+        }
 }

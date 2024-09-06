@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package io.github.vinicreis.dht.core.model.response;
+
+import "io/github/vinicreis/dht/core/model/data.proto";
+import "io/github/vinicreis/dht/core/model/result.proto";
+
+message RemoveResponse {
+  Result result = 1;
+  bytes key = 2;
+  Data data = 3;
+}

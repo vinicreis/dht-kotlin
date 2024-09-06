@@ -8,6 +8,7 @@ import "io/github/vinicreis/dht/core/service/model/request/join_ok_request.proto
 import "io/github/vinicreis/dht/core/service/model/request/leave_request.proto";
 import "io/github/vinicreis/dht/core/service/model/request/new_node_request.proto";
 import "io/github/vinicreis/dht/core/service/model/request/node_gone_request.proto";
+import "io/github/vinicreis/dht/core/service/model/request/remove_request.proto";
 import "io/github/vinicreis/dht/core/service/model/request/set_request.proto";
 import "io/github/vinicreis/dht/core/service/model/request/transfer_request.proto";
 import "io/github/vinicreis/dht/core/service/model/response/get_response.proto";
@@ -16,6 +17,7 @@ import "io/github/vinicreis/dht/core/service/model/response/join_ok_response.pro
 import "io/github/vinicreis/dht/core/service/model/response/leave_response.proto";
 import "io/github/vinicreis/dht/core/service/model/response/new_node_response.proto";
 import "io/github/vinicreis/dht/core/service/model/response/node_gone_response.proto";
+import "io/github/vinicreis/dht/core/service/model/response/remove_response.proto";
 import "io/github/vinicreis/dht/core/service/model/response/set_response.proto";
 import "io/github/vinicreis/dht/core/service/model/response/transfer_response.proto";
 
@@ -27,5 +29,6 @@ service DHTService {
   rpc leave(io.github.vinicreis.dht.core.model.request.LeaveRequest) returns (io.github.vinicreis.dht.core.model.response.LeaveResponse) { }
   rpc set(io.github.vinicreis.dht.core.model.request.SetRequest) returns (io.github.vinicreis.dht.core.model.response.SetResponse) { }
   rpc get(io.github.vinicreis.dht.core.model.request.GetRequest) returns (io.github.vinicreis.dht.core.model.response.GetResponse) { }
+  rpc remove(io.github.vinicreis.dht.core.model.request.RemoveRequest) returns (io.github.vinicreis.dht.core.model.response.RemoveResponse) { }
   rpc transfer(stream io.github.vinicreis.dht.core.model.request.TransferRequest) returns (io.github.vinicreis.dht.core.model.response.TransferResponse) { }
 }

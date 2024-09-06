@@ -27,6 +27,7 @@ import io.github.vinicreis.dht.model.service.Node
 import io.github.vinicreis.dht.model.service.Port
 import kotlinx.coroutines.flow.Flow
 import java.io.InputStream
+import java.util.logging.Logger
 import kotlin.coroutines.CoroutineContext
 
 private const val HOSTS_FILE = "hosts.json"
@@ -40,17 +41,17 @@ private fun getHosts(): List<Node> {
 }
 
 fun DHTServiceGrpc(
-    id: Long,
-    address: Address,
-    port: Port,
+    info: Node,
     hashStrategy: HashStrategy,
     coroutineContext: CoroutineContext,
+    logger: Logger,
 ): DHTService = DHTServiceGrpcServerImpl(
-    info = Node(id, address, port),
+    info = info,
     knownNodes = getHosts(),
     coroutineContext = coroutineContext,
     hashStrategy = hashStrategy,
     nodeStubStrategy = NodeStubStrategyGrpc(),
+    logger = logger,
 )
 
 interface DHTServiceGrpc {

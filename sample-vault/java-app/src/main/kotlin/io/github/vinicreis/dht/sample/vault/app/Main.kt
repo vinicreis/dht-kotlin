@@ -14,18 +14,21 @@ import java.util.logging.Logger
 import kotlin.concurrent.thread
 import kotlin.system.exitProcess
 
+private const val DEFAULT_PORT = 10100
+
 fun main() {
     val logger: Logger = Logger.getLogger("SampleMainLogger")
-    val clientPort = input("Enter your port")?.toIntOrNull()?.let { Port(it) } ?: return
+    val clientPortValue = input("Enter your port", DEFAULT_PORT.toString())?.toIntOrNull() ?: return
+    val clientPort = Port(clientPortValue)
     val coroutineExceptionHandler = CoroutineExceptionHandler { _, t ->
         logger.severe(t.message)
     }
 
     val service = VaultServiceImpl(
         server = Node(
-            id = 0L,
+            id = 2L,
             address = Address("localhost"),
-            port = Port(10090),
+            port = Port(10092),
         ),
         client = Node(
             id = 1L,
@@ -39,6 +42,9 @@ fun main() {
         thread(start = false) { service.shutdown() }
     )
 
+    // TODO: Delete after development
+    setInitialData(service)
+
     while (true) {
         when(selectOption()) {
             Option.GET -> get(service)
@@ -49,9 +55,21 @@ fun main() {
     }
 }
 
-private fun input(message: String): String? {
-    print("$message: ")
-    return readlnOrNull()
+@Deprecated("Delete after development")
+private fun setInitialData(service: VaultService) {
+    runBlocking {
+        service.set(Secret("1", "ola"))
+        service.set(Secret("2", "mundo"))
+        service.set(Secret("3", "mundao"))
+    }
+}
+
+private fun input(message: String, default: String? = null): String? {
+    val defaultText = default?.let { " [$it]" }.orEmpty()
+
+    print("$message$defaultText: ")
+
+    return readlnOrNull()?.takeIf { it.isNotBlank() } ?: default
 }
 
 private fun selectOption(): Option {

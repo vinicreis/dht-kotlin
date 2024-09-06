@@ -4,6 +4,7 @@ import com.google.protobuf.ByteString
 import io.github.vinicreis.dht.core.grpc.domain.strategy.NodeStubStrategy
 import io.github.vinicreis.dht.core.grpc.infra.extensions.asByteString
 import io.github.vinicreis.dht.core.model.DataTypeOuterClass
+import io.github.vinicreis.dht.core.model.data
 import io.github.vinicreis.dht.core.model.request.foundRequest
 import io.github.vinicreis.dht.core.model.request.notFoundRequest
 import io.github.vinicreis.dht.core.service.domain.DHTServiceClientStub
@@ -28,7 +29,7 @@ internal class DHTServiceClientStubImpl(
                 found(
                     foundRequest {
                         this.key = key.asByteString
-                        this.data = io.github.vinicreis.dht.core.model.data {
+                        this.data = data {
                             type = DataTypeOuterClass.DataType.BYTE
                             content = ByteString.copyFrom(data)
                         }

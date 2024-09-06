@@ -13,6 +13,7 @@ import io.github.vinicreis.dht.core.model.request.JoinRequestOuterClass.JoinRequ
 import io.github.vinicreis.dht.core.model.request.LeaveRequestOuterClass.LeaveRequest
 import io.github.vinicreis.dht.core.model.request.NewNodeRequestOuterClass.NewNodeRequest
 import io.github.vinicreis.dht.core.model.request.NodeGoneRequestOuterClass.NodeGoneRequest
+import io.github.vinicreis.dht.core.model.request.RemoveRequestOuterClass.RemoveRequest
 import io.github.vinicreis.dht.core.model.request.SetRequestOuterClass.SetRequest
 import io.github.vinicreis.dht.core.model.request.TransferRequestOuterClass.TransferRequest
 import io.github.vinicreis.dht.core.model.request.nextOrNull
@@ -22,6 +23,7 @@ import io.github.vinicreis.dht.core.model.response.JoinResponseOuterClass.JoinRe
 import io.github.vinicreis.dht.core.model.response.LeaveResponseOuterClass.LeaveResponse
 import io.github.vinicreis.dht.core.model.response.NewNodeResponseOuterClass.NewNodeResponse
 import io.github.vinicreis.dht.core.model.response.NodeGoneResponseOuterClass.NodeGoneResponse
+import io.github.vinicreis.dht.core.model.response.RemoveResponseOuterClass.RemoveResponse
 import io.github.vinicreis.dht.core.model.response.SetResponseOuterClass.SetResponse
 import io.github.vinicreis.dht.core.model.response.TransferResponseOuterClass.TransferResponse
 import io.github.vinicreis.dht.core.model.response.getResponse
@@ -30,6 +32,7 @@ import io.github.vinicreis.dht.core.model.response.joinResponse
 import io.github.vinicreis.dht.core.model.response.leaveResponse
 import io.github.vinicreis.dht.core.model.response.newNodeResponse
 import io.github.vinicreis.dht.core.model.response.nodeGoneResponse
+import io.github.vinicreis.dht.core.model.response.removeResponse
 import io.github.vinicreis.dht.core.model.response.setResponse
 import io.github.vinicreis.dht.core.model.response.transferResponse
 import io.github.vinicreis.dht.core.service.DHTServiceGrpcKt.DHTServiceCoroutineImplBase
@@ -39,17 +42,23 @@ import io.github.vinicreis.dht.core.service.domain.DHTServiceServerStub
 import io.github.vinicreis.dht.model.service.Node
 import io.grpc.Grpc
 import io.grpc.InsecureServerCredentials
+import io.grpc.Status
+import io.grpc.StatusException
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.onStart
 import java.util.logging.Logger
 import kotlin.coroutines.CoroutineContext
+import kotlin.properties.Delegates.observable
 
 internal class DHTServiceGrpcServerImpl(
     override val info: Node,
     private val knownNodes: List<Node>,
     private val nodeStubStrategy: NodeStubStrategy,
-    private val logger: Logger = Logger.getLogger(DHTServiceGrpcServerImpl::class.simpleName),
+    private val logger: Logger,
     private val hashStrategy: HashStrategy,
     coroutineContext: CoroutineContext,
 ) :
@@ -57,11 +66,18 @@ internal class DHTServiceGrpcServerImpl(
     DHTServiceGrpc,
     DHTServiceServerStub by DHTServiceServerStubImpl(coroutineContext, nodeStubStrategy),
     DHTServiceClientStub by DHTServiceClientStubImpl(coroutineContext, nodeStubStrategy),
+    HashStrategy by hashStrategy,
     DHTServiceCoroutineImplBase(coroutineContext)
 {
-    override var next: Node? = null
-    override var previous: Node? = null
     override val data: MutableMap<String, ByteArray> = mutableMapOf()
+    override var next: Node? by observable(null) { _, old, new ->
+        logger.info("Next node set from $old to $new")
+    }
+
+    override var previous: Node? by observable(null) { _, old, new ->
+        logger.info("Previous node set from $old to $new")
+    }
+
     private val responsibleFor = knownNodes.toMutableSet()
     private val queue = AsyncQueueService(coroutineContext)
     private val mutableEvents = MutableSharedFlow<DHTService.Event>()
@@ -93,6 +109,27 @@ internal class DHTServiceGrpcServerImpl(
                 val result = node.join(info)
 
                 if (result.isSuccess && result.getOrElse { false }) break
+            } catch (e: StatusException) {
+                when(e.status.code) {
+                    null -> logger.severe("Join failed without status code")
+                    Status.Code.UNIMPLEMENTED -> logger.severe("Join call is not implemented on server")
+                    Status.Code.OK -> logger.severe("Join failed with OK status code. This should not happen")
+                    Status.Code.UNAVAILABLE,
+                    Status.Code.DEADLINE_EXCEEDED,
+                    Status.Code.CANCELLED,
+                    Status.Code.ABORTED,
+                    Status.Code.NOT_FOUND -> logger.info("Node $node might not be available yet. Skipping...")
+                    Status.Code.PERMISSION_DENIED,
+                    Status.Code.UNAUTHENTICATED -> logger.info("Join failed by authentication error")
+                    Status.Code.INVALID_ARGUMENT,
+                    Status.Code.FAILED_PRECONDITION,
+                    Status.Code.OUT_OF_RANGE,
+                    Status.Code.ALREADY_EXISTS -> logger.warning("Join failed with code ${e.status.code}. Check your arguments")
+                    Status.Code.DATA_LOSS,
+                    Status.Code.UNKNOWN,
+                    Status.Code.RESOURCE_EXHAUSTED,
+                    Status.Code.INTERNAL -> logger.info("Join failed by internal error ${e.status.code}")
+                }
             } catch (e: Exception) {
                 logger.severe("Failed to join node $node: ${e.message}")
             }
@@ -101,11 +138,13 @@ internal class DHTServiceGrpcServerImpl(
         mutableEvents.emit(DHTService.Event.Joined)
     }
 
+    // FIXME: Previous node is set ad itself
     override suspend fun leave() {
-        queue {
-            next?.leave(previous)
-            with(hashStrategy) { next?.transfer(info, data from next!!) }
-        }
+        next?.also { nextNode ->
+            nextNode.leave(previous)
+            nextNode.transfer(info, data from nextNode)
+            previous?.nodeGone(nextNode) ?: logger.info("No previous node to notify NODE_GONE")
+        } ?: logger.info("No next node to notify LEAVE")
     }
 
     override suspend fun join(request: JoinRequest): JoinResponse {
@@ -123,7 +162,7 @@ internal class DHTServiceGrpcServerImpl(
 
                     queue {
                         newNode.joinOk(info, previous)
-                        with (hashStrategy) { newNode.transfer(info, data from newNode) }
+                        newNode.transfer(info, data from newNode)
                     }
 
                     Result.SUCCESS
@@ -208,7 +247,7 @@ internal class DHTServiceGrpcServerImpl(
             val key = request.key.toStringUtf8()
 
             when {
-                isResponsableFor(key) -> {
+                info isResponsibleFor key -> {
                     data[key]?.let { bytes ->
                         request.node.asDomain.found(key, bytes)
                     } ?: request.node.asDomain.notFound(key)
@@ -228,7 +267,7 @@ internal class DHTServiceGrpcServerImpl(
             val key = request.key.toStringUtf8()
 
             when {
-                isResponsableFor(key) -> data[key] = request.data.content.toByteArray()
+                info isResponsibleFor key -> data[key] = request.data.content.toByteArray()
                 next == null -> error("Node should be responsible for this key or have a next node")
                 else -> next!!.set(request.node.asDomain, key, request.data.content.toByteArray())
             }
@@ -237,23 +276,44 @@ internal class DHTServiceGrpcServerImpl(
         return setResponse { result = ResultOuterClass.Result.SUCCESS }
     }
 
+    override suspend fun remove(request: RemoveRequest): RemoveResponse {
+        logger.info("Received REMOVE request...")
+
+        queue {
+            val key = request.key.toStringUtf8()
+
+            when {
+                info isResponsibleFor key -> data.remove(key)?.let {
+                    request.node.asDomain.found(key, it)
+                } ?: request.node.asDomain.notFound(key)
+                next == null -> error("Node should be responsible for this key or have a next node")
+                else -> next!!.remove(request.node.asDomain, key)
+            }
+        }
+
+        return removeResponse { result = ResultOuterClass.Result.SUCCESS }
+    }
+
     override suspend fun transfer(requests: Flow<TransferRequest>): TransferResponse {
         logger.info("Received TRANSFER request...")
 
-        queue {
-            requests.collect { entry ->
-                val key = entry.key.toStringUtf8()
+        coroutineScope {
+            requests
+                .onStart { logger.info("Collecting transfer requests...") }
+                .onCompletion { logger.info("Transfer requests collection finished!") }
+                .collect { request ->
+                    val key = request.key.toStringUtf8()
 
-                logger.info("Receiving key $key from ${entry.node.asDomain}")
+                    logger.info("Receiving key $key from ${request.node.asDomain}")
 
-                data[key] = entry.data.content.toByteArray()
-            }
+                    data[key] = request.data.content.toByteArray()
+                }
         }
 
         return transferResponse { result = Result.SUCCESS }
     }
 
-    private fun isResponsableFor(key: String): Boolean {
+    private infix fun Node.isResponsibleFor(key: String): Boolean {
         return responsibleFor.any { it.id == hashStrategy(key) }
     }
 }

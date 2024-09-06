@@ -10,13 +10,13 @@ import io.github.vinicreis.dht.core.model.ResultOuterClass
 import io.github.vinicreis.dht.core.model.request.FoundRequestOuterClass.FoundRequest
 import io.github.vinicreis.dht.core.model.request.NotFoundRequestOuterClass.NotFoundRequest
 import io.github.vinicreis.dht.core.model.request.getRequest
+import io.github.vinicreis.dht.core.model.request.removeRequest
 import io.github.vinicreis.dht.core.model.request.setRequest
 import io.github.vinicreis.dht.core.model.response.FoundResponseOuterClass.FoundResponse
 import io.github.vinicreis.dht.core.model.response.NotFoundResponseOuterClass.NotFoundResponse
 import io.github.vinicreis.dht.core.model.response.foundResponse
 import io.github.vinicreis.dht.core.model.response.notFoundResponse
 import io.github.vinicreis.dht.core.service.DHTServiceClientGrpcKt
-import io.github.vinicreis.dht.core.service.DHTServiceGrpcKt.DHTServiceCoroutineStub
 import io.github.vinicreis.dht.library.domain.DHT
 import io.github.vinicreis.dht.model.service.Node
 import io.grpc.Grpc
@@ -73,7 +73,16 @@ class DHTClient(
     }
 
     override suspend fun remove(key: String): ByteArray? {
-        TODO("Not yet implemented")
+        return dhtServer.withServerStub {
+            remove(
+                removeRequest {
+                    node = info.asGrpc
+                    this.key = key.asByteString
+                }
+            )
+        }.takeIf { it.result == ResultOuterClass.Result.SUCCESS }?.let {
+            messages.receive()
+        }
     }
 
     override suspend fun found(request: FoundRequest): FoundResponse {
