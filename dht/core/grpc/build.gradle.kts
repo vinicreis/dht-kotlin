@@ -6,5 +6,7 @@ plugins {
 }
 
 dependencies {
+    implementation(projects.dht.core.model)
     implementation(projects.dht.core.service)
+    implementation(libs.google.gson)
 }

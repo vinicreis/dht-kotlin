@@ -1,9 +1,9 @@
 package io.github.vinicreis.dht.core.grpc.infra.mapper
 
 import io.github.vinicreis.dht.core.model.node
-import io.github.vinicreis.dht.core.service.domain.model.Address
-import io.github.vinicreis.dht.core.service.domain.model.Node
-import io.github.vinicreis.dht.core.service.domain.model.Port
+import io.github.vinicreis.dht.model.service.Address
+import io.github.vinicreis.dht.model.service.Node
+import io.github.vinicreis.dht.model.service.Port
 import io.github.vinicreis.dht.core.model.NodeOuterClass.Node as GrpcNode
 
 internal val GrpcNode.asDomain: Node
@@ -13,7 +13,7 @@ internal val GrpcNode.asDomain: Node
         port = Port(port),
     )
 
-internal val Node.asGrpc: GrpcNode
+val Node.asGrpc: GrpcNode
     get() = node {
         id = this@asGrpc.id
         address = this@asGrpc.address.value

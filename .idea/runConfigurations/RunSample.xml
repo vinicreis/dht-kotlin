@@ -1,0 +1,10 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="RunSample" type="JetRunConfigurationType" singleton="false">
+    <option name="MAIN_CLASS_NAME" value="io.github.vinicreis.dht.sample.chat.app.MainKt" />
+    <module name="dht-kotlin.sample.java-app.main" />
+    <shortenClasspath name="NONE" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

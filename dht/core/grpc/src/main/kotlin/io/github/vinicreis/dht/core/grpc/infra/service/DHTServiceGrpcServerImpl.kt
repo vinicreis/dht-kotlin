@@ -1,54 +1,47 @@
 package io.github.vinicreis.dht.core.grpc.infra.service
 
-import io.github.vinicreis.dht.core.grpc.domain.strategy.NodeStubStrategy
 import io.github.vinicreis.dht.core.grpc.domain.service.DHTServiceGrpc
 import io.github.vinicreis.dht.core.grpc.domain.strategy.HashStrategy
+import io.github.vinicreis.dht.core.grpc.domain.strategy.NodeStubStrategy
 import io.github.vinicreis.dht.core.grpc.infra.extensions.from
 import io.github.vinicreis.dht.core.grpc.infra.mapper.asDomain
 import io.github.vinicreis.dht.core.model.ResultOuterClass
 import io.github.vinicreis.dht.core.model.ResultOuterClass.Result
-import io.github.vinicreis.dht.core.model.request.FoundRequestOuterClass.FoundRequest
 import io.github.vinicreis.dht.core.model.request.GetRequestOuterClass.GetRequest
 import io.github.vinicreis.dht.core.model.request.JoinOkRequestOuterClass.JoinOkRequest
 import io.github.vinicreis.dht.core.model.request.JoinRequestOuterClass.JoinRequest
 import io.github.vinicreis.dht.core.model.request.LeaveRequestOuterClass.LeaveRequest
 import io.github.vinicreis.dht.core.model.request.NewNodeRequestOuterClass.NewNodeRequest
 import io.github.vinicreis.dht.core.model.request.NodeGoneRequestOuterClass.NodeGoneRequest
-import io.github.vinicreis.dht.core.model.request.NotFoundRequestOuterClass.NotFoundRequest
 import io.github.vinicreis.dht.core.model.request.SetRequestOuterClass.SetRequest
 import io.github.vinicreis.dht.core.model.request.TransferRequestOuterClass.TransferRequest
 import io.github.vinicreis.dht.core.model.request.nextOrNull
-import io.github.vinicreis.dht.core.model.response.FoundResponseOuterClass.FoundResponse
 import io.github.vinicreis.dht.core.model.response.GetResponseOuterClass.GetResponse
 import io.github.vinicreis.dht.core.model.response.JoinOkResponseOuterClass.JoinOkResponse
 import io.github.vinicreis.dht.core.model.response.JoinResponseOuterClass.JoinResponse
 import io.github.vinicreis.dht.core.model.response.LeaveResponseOuterClass.LeaveResponse
 import io.github.vinicreis.dht.core.model.response.NewNodeResponseOuterClass.NewNodeResponse
 import io.github.vinicreis.dht.core.model.response.NodeGoneResponseOuterClass.NodeGoneResponse
-import io.github.vinicreis.dht.core.model.response.NotFoundResponseOuterClass.NotFoundResponse
 import io.github.vinicreis.dht.core.model.response.SetResponseOuterClass.SetResponse
 import io.github.vinicreis.dht.core.model.response.TransferResponseOuterClass.TransferResponse
-import io.github.vinicreis.dht.core.model.response.foundResponse
 import io.github.vinicreis.dht.core.model.response.getResponse
 import io.github.vinicreis.dht.core.model.response.joinOkResponse
 import io.github.vinicreis.dht.core.model.response.joinResponse
 import io.github.vinicreis.dht.core.model.response.leaveResponse
 import io.github.vinicreis.dht.core.model.response.newNodeResponse
 import io.github.vinicreis.dht.core.model.response.nodeGoneResponse
-import io.github.vinicreis.dht.core.model.response.notFoundResponse
 import io.github.vinicreis.dht.core.model.response.setResponse
 import io.github.vinicreis.dht.core.model.response.transferResponse
 import io.github.vinicreis.dht.core.service.DHTServiceGrpcKt.DHTServiceCoroutineImplBase
-import io.github.vinicreis.dht.core.service.domain.DHTClient
 import io.github.vinicreis.dht.core.service.domain.DHTService
-import io.github.vinicreis.dht.core.service.domain.model.Node
+import io.github.vinicreis.dht.core.service.domain.DHTServiceClientStub
+import io.github.vinicreis.dht.core.service.domain.DHTServiceServerStub
+import io.github.vinicreis.dht.model.service.Node
 import io.grpc.Grpc
 import io.grpc.InsecureServerCredentials
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.flow.first
 import java.util.logging.Logger
 import kotlin.coroutines.CoroutineContext
 
@@ -62,7 +55,8 @@ internal class DHTServiceGrpcServerImpl(
 ) :
     DHTService,
     DHTServiceGrpc,
-    DHTClient by DHTServiceGrpcClientImpl(coroutineContext, nodeStubStrategy),
+    DHTServiceServerStub by DHTServiceServerStubImpl(coroutineContext, nodeStubStrategy),
+    DHTServiceClientStub by DHTServiceClientStubImpl(coroutineContext, nodeStubStrategy),
     DHTServiceCoroutineImplBase(coroutineContext)
 {
     override var next: Node? = null
@@ -108,33 +102,9 @@ internal class DHTServiceGrpcServerImpl(
     }
 
     override suspend fun leave() {
-        queue { next?.leave(previous) }
-        with(hashStrategy) { queue { next?.transfer(info, data from next!!) } }
-    }
-
-    override suspend fun get(key: String): ByteArray? {
-        return if (isResponsableFor(key)) {
-            data[key]
-        } else {
-            next?.get(info, key)
-
-            return mutableEvents
-                .filterIsInstance<DHTService.Event.ResultReceived>()
-                .first()
-                .let {
-                    when (it) {
-                        is DHTService.Event.Found -> it.data
-                        is DHTService.Event.NotFound -> null
-                    }
-                }
-        }
-    }
-
-    override suspend fun set(key: String, value: ByteArray) {
-        if (isResponsableFor(key)) {
-            data[key] = value
-        } else {
-            next?.set(info, key, value)
+        queue {
+            next?.leave(previous)
+            with(hashStrategy) { next?.transfer(info, data from next!!) }
         }
     }
 
@@ -151,8 +121,10 @@ internal class DHTServiceGrpcServerImpl(
                         responsibleFor.remove(newNode)
                     }
 
-                    queue { newNode.joinOk(info, previous) }
-                    queue { with (hashStrategy) { newNode.transfer(info, data from newNode) } }
+                    queue {
+                        newNode.joinOk(info, previous)
+                        with (hashStrategy) { newNode.transfer(info, data from newNode) }
+                    }
 
                     Result.SUCCESS
                 } catch (e: Exception) {
@@ -265,36 +237,16 @@ internal class DHTServiceGrpcServerImpl(
         return setResponse { result = ResultOuterClass.Result.SUCCESS }
     }
 
-    override suspend fun found(request: FoundRequest): FoundResponse {
-        logger.info("Received FOUND request...")
-
-        queue {
-            mutableEvents.emit(
-                DHTService.Event.Found(request.key.toStringUtf8(), request.data.content.toByteArray())
-            )
-        }
-
-        return foundResponse { result = Result.SUCCESS }
-    }
-
-    override suspend fun notFound(request: NotFoundRequest): NotFoundResponse {
-        logger.info("Received FOUND request...")
-
-        queue {
-            mutableEvents.emit(
-                DHTService.Event.NotFound(request.key.toStringUtf8())
-            )
-        }
-
-        return notFoundResponse { result = Result.SUCCESS }
-    }
-
     override suspend fun transfer(requests: Flow<TransferRequest>): TransferResponse {
         logger.info("Received TRANSFER request...")
 
         queue {
             requests.collect { entry ->
-                data[entry.key.toStringUtf8()] = entry.data.content.toByteArray()
+                val key = entry.key.toStringUtf8()
+
+                logger.info("Receiving key $key from ${entry.node.asDomain}")
+
+                data[key] = entry.data.content.toByteArray()
             }
         }
 

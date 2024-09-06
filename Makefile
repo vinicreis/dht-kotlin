@@ -1,10 +1,35 @@
 ENV_FILE_NAME=sample.env
 OUT_PATH=dht/out
+SAMPLE_VAULT_OUT_PATH=sample-vault/out
 
 .PHONY: dht
 
-build: dht_build
-clean: dht_clean
+build: dht_build sample_vault_build
+clean: dht_clean sample_vault_clean
+
+sample_vault_build: sample_vault_clean
+	@echo "Building vault sample..."
+	@./gradlew -q sample-vault:java-app:assembleDist
+	@echo "Moving ang unpacking vault sample executable..."
+	@mkdir -p $(SAMPLE_VAULT_OUT_PATH)
+	@cp sample-vault/java-app/build/distributions/*.tar $(SAMPLE_VAULT_OUT_PATH)/sample-vault.tar
+	@tar -xf $(SAMPLE_VAULT_OUT_PATH)/sample-vault.tar -C $(SAMPLE_VAULT_OUT_PATH)
+	@rm $(SAMPLE_VAULT_OUT_PATH)/*.tar
+	@mv -f $(SAMPLE_VAULT_OUT_PATH)/dht-vault-sample-*/* $(SAMPLE_VAULT_OUT_PATH)
+	@rmdir $(SAMPLE_VAULT_OUT_PATH)/dht-vault-sample-*
+
+sample_vault_clean:
+	@echo "Stopping service..."
+	@echo "Cleaning up sample Gradle projects"
+	@rm -rf $(SAMPLE_VAULT_OUT_PATH)
+	@./gradlew -q sample-vault:core:core-model:clean
+
+dht_all: dht_build
+	@echo "Starting service..."
+	@$(OUT_PATH)/bin/dht-service 0 10090 #&
+#	@$(OUT_PATH)/bin/dht-service 1 10091 &
+#	@$(OUT_PATH)/bin/dht-service 2 10092 &
+#	@$(OUT_PATH)/bin/dht-service 3 10093 &
 
 dht: dht_build
 	@$(OUT_PATH)/bin/dht-service

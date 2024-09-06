@@ -1,4 +1,4 @@
-package io.github.vinicreis.dht.core.service.domain.model
+package io.github.vinicreis.dht.model.service
 
 data class Node(
     val id: Long,

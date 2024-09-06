@@ -1,0 +1,22 @@
+[
+  {
+    "id": 0,
+    "address": "localhost",
+    "port": 10090
+  },
+  {
+    "id": 1,
+    "address": "localhost",
+    "port": 10091
+  },
+  {
+    "id": 2,
+    "address": "localhost",
+    "port": 10092
+  },
+  {
+    "id": 3,
+    "address": "localhost",
+    "port": 10093
+  }
+]

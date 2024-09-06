@@ -6,9 +6,10 @@ import java.security.MessageDigest
 class HashStrategyMD5(private val maxValue: Long) : HashStrategy {
     private val digest = MessageDigest.getInstance(ALGO)
 
-    override fun invoke(key: String): Long = digest.digest(key.toByteArray()).foldIndexed(0L) { i, acc, byte ->
-        acc or (byte.toLong() shl 8 * i)
-    } % maxValue
+    override fun invoke(key: String): Long = digest
+        .digest(key.toByteArray())
+        .sumOf { it.toUInt() }
+        .toLong() % maxValue
 
     companion object {
         private const val ALGO = "MD5"

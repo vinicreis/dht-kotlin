@@ -1,9 +1,9 @@
 package io.github.vinicreis.dht.core.service.domain
 
-import io.github.vinicreis.dht.core.service.domain.model.Node
+import io.github.vinicreis.dht.model.service.Node
 import kotlinx.coroutines.flow.Flow
 
-interface DHTService : DHTServer, DHTClient {
+interface DHTService : DHTServiceServer, DHTServiceServerStub {
     sealed interface Event {
         data object JoinStarted : Event
         data object Joined : Event
@@ -19,7 +19,7 @@ interface DHTService : DHTServer, DHTClient {
     val events: Flow<Event>
 }
 
-interface DHTServer {
+interface DHTServiceServer {
     val info: Node
     var next: Node?
     var previous: Node?
@@ -30,19 +30,20 @@ interface DHTServer {
     fun shutdown()
     suspend fun join(nodes: List<Node>)
     suspend fun leave()
-    suspend fun get(key: String): ByteArray?
-    suspend fun set(key: String, value: ByteArray)
 }
 
-interface DHTClient {
+interface DHTServiceServerStub {
     suspend fun Node.join(info: Node): Result<Boolean>
     suspend fun Node.joinOk(next: Node, previous: Node?)
     suspend fun Node.leave(previous: Node?)
     suspend fun Node.newNode(next: Node)
     suspend fun Node.nodeGone(next: Node?)
-    suspend fun Node.found(key: String, data: ByteArray)
-    suspend fun Node.notFound(key: String)
     suspend fun Node.transfer(info: Node, data: Map<String, ByteArray>)
     suspend fun Node.get(node: Node, key: String)
     suspend fun Node.set(node: Node, key: String, value: ByteArray)
+}
+
+interface DHTServiceClientStub {
+    suspend fun Node.found(key: String, data: ByteArray)
+    suspend fun Node.notFound(key: String)
 }

@@ -2,24 +2,20 @@ syntax = "proto3";
 
 package io.github.vinicreis.dht.core.service;
 
-import "io/github/vinicreis/dht/core/service/model/request/found_request.proto";
 import "io/github/vinicreis/dht/core/service/model/request/get_request.proto";
 import "io/github/vinicreis/dht/core/service/model/request/join_request.proto";
 import "io/github/vinicreis/dht/core/service/model/request/join_ok_request.proto";
 import "io/github/vinicreis/dht/core/service/model/request/leave_request.proto";
 import "io/github/vinicreis/dht/core/service/model/request/new_node_request.proto";
 import "io/github/vinicreis/dht/core/service/model/request/node_gone_request.proto";
-import "io/github/vinicreis/dht/core/service/model/request/not_found_request.proto";
 import "io/github/vinicreis/dht/core/service/model/request/set_request.proto";
 import "io/github/vinicreis/dht/core/service/model/request/transfer_request.proto";
-import "io/github/vinicreis/dht/core/service/model/response/found_response.proto";
 import "io/github/vinicreis/dht/core/service/model/response/get_response.proto";
 import "io/github/vinicreis/dht/core/service/model/response/join_response.proto";
 import "io/github/vinicreis/dht/core/service/model/response/join_ok_response.proto";
 import "io/github/vinicreis/dht/core/service/model/response/leave_response.proto";
 import "io/github/vinicreis/dht/core/service/model/response/new_node_response.proto";
 import "io/github/vinicreis/dht/core/service/model/response/node_gone_response.proto";
-import "io/github/vinicreis/dht/core/service/model/response/not_found_response.proto";
 import "io/github/vinicreis/dht/core/service/model/response/set_response.proto";
 import "io/github/vinicreis/dht/core/service/model/response/transfer_response.proto";
 
@@ -31,7 +27,5 @@ service DHTService {
   rpc leave(io.github.vinicreis.dht.core.model.request.LeaveRequest) returns (io.github.vinicreis.dht.core.model.response.LeaveResponse) { }
   rpc set(io.github.vinicreis.dht.core.model.request.SetRequest) returns (io.github.vinicreis.dht.core.model.response.SetResponse) { }
   rpc get(io.github.vinicreis.dht.core.model.request.GetRequest) returns (io.github.vinicreis.dht.core.model.response.GetResponse) { }
-  rpc found(io.github.vinicreis.dht.core.model.request.FoundRequest) returns (io.github.vinicreis.dht.core.model.response.FoundResponse) { }
-  rpc notFound(io.github.vinicreis.dht.core.model.request.NotFoundRequest) returns (io.github.vinicreis.dht.core.model.response.NotFoundResponse) { }
   rpc transfer(stream io.github.vinicreis.dht.core.model.request.TransferRequest) returns (io.github.vinicreis.dht.core.model.response.TransferResponse) { }
 }
