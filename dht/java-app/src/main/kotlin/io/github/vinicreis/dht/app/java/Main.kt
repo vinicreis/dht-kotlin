@@ -29,10 +29,14 @@ fun main(args: Array<String>) {
     )
 
     Runtime.getRuntime().addShutdownHook(
-        thread(start = false) {
+        thread(start = false, name = "Leave-Thread") {
             runBlocking {
-                service.leave()
-                Logger.getLogger("Main").info("Node left gracefully!")
+                try {
+                    service.leave()
+                    Logger.getLogger("Main").info("Node left gracefully!")
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
         }
     )

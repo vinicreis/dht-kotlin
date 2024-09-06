@@ -64,14 +64,14 @@ internal class DHTServiceServerStubImpl(
         }
     }
 
-    override suspend fun Node.leave(previous: Node?) {
+    override suspend fun Node.leave(info: Node, previous: Node?) {
         logger.info("Sending LEAVE to $this")
 
         withContext(coroutineContext) {
             withServerStub {
                 leave(
                     leaveRequest {
-                        node = this@leave.asGrpc
+                        node = info.asGrpc
                         previous?.also { this.previous = it.asGrpc }
                     }
                 )

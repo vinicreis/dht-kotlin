@@ -35,7 +35,7 @@ interface DHTServiceServer {
 interface DHTServiceServerStub {
     suspend fun Node.join(info: Node): Result<Boolean>
     suspend fun Node.joinOk(next: Node, previous: Node?)
-    suspend fun Node.leave(previous: Node?)
+    suspend fun Node.leave(info: Node, previous: Node?)
     suspend fun Node.newNode(next: Node)
     suspend fun Node.nodeGone(next: Node?)
     suspend fun Node.transfer(info: Node, data: Map<String, ByteArray>)

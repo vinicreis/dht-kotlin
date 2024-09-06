@@ -72,15 +72,19 @@ internal class DHTServiceGrpcServerImpl(
 {
     override val data: MutableMap<String, ByteArray> = mutableMapOf()
     override var next: Node? by vetoable(null) { _, old, new ->
-        logger.info("SET: next from $old to $new")
+        val allowChange = new == null || new != info
 
-        new != info
+        if(allowChange) logger.info("SET: next from $old to $new")
+
+        allowChange
     }
 
     override var previous: Node? by vetoable(null) { _, old, new ->
-        logger.info("SET: previous from $old to $new")
+        val allowChange = new == null || new != info
 
-        new != info
+        if(allowChange) logger.info("SET: previous from $old to $new")
+
+        allowChange
     }
 
     private val responsibleForId = knownNodes.map { it.id }.toMutableSet()
@@ -130,7 +134,8 @@ internal class DHTServiceGrpcServerImpl(
                     Status.Code.INVALID_ARGUMENT,
                     Status.Code.FAILED_PRECONDITION,
                     Status.Code.OUT_OF_RANGE,
-                    Status.Code.ALREADY_EXISTS -> logger.warning("Join failed with code ${e.status.code}. Check your arguments")
+                    Status.Code.ALREADY_EXISTS ->
+                        logger.warning("Join failed with code ${e.status.code}. Check your arguments")
                     Status.Code.DATA_LOSS,
                     Status.Code.UNKNOWN,
                     Status.Code.RESOURCE_EXHAUSTED,
@@ -144,11 +149,10 @@ internal class DHTServiceGrpcServerImpl(
 
     override suspend fun leave() {
         next?.also { nextNode ->
-            nextNode.leave(previous)
+            nextNode.leave(info, previous)
             nextNode.transfer(info, data from nextNode)
-            data removeFrom nextNode
-            previous?.nodeGone(nextNode) ?: logger.info("No previous node to notify NODE_GONE")
-        } ?: logger.info("No next node to notify LEAVE")
+            previous?.nodeGone(nextNode.takeIf { it != previous })
+        }
     }
 
     override suspend fun join(request: JoinRequest): JoinResponse {
@@ -158,12 +162,10 @@ internal class DHTServiceGrpcServerImpl(
             result = let {
                 val newNode = request.node.asDomain
 
-                if (info isNotResponsibleFor newNode.id) {
-                    queue {
+                queue {
+                    if (info isNotResponsibleFor newNode.id) {
                         next?.join(newNode) ?: error("Next node should be set if $info is not responsible for $newNode")
-                    }
-                } else {
-                    queue {
+                    } else {
                         newNode.joinOk(info, previous ?: info)
                         newNode.transfer(info, data from newNode)
                         data removeFrom newNode
@@ -207,13 +209,9 @@ internal class DHTServiceGrpcServerImpl(
     override suspend fun nodeGone(request: NodeGoneRequest): NodeGoneResponse {
         logger.info("Received NODE_GONE request...")
 
-        return nodeGoneResponse {
-            result = let {
-                next = request.next.asDomain
+        next = request.nextOrNull?.asDomain?.takeIf { it != info }
 
-                Result.SUCCESS
-            }
-        }
+        return nodeGoneResponse { result = Result.SUCCESS }
     }
 
     override suspend fun leave(request: LeaveRequest): LeaveResponse {
@@ -221,7 +219,8 @@ internal class DHTServiceGrpcServerImpl(
 
         return leaveResponse {
             result = let {
-                previous = request.previousOrNull?.asDomain
+                previous = request.previousOrNull?.asDomain?.takeIf { it != info }
+                responsibleForId.add(request.node.asDomain.id)
 
                 Result.SUCCESS
             }
