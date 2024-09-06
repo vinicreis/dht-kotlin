@@ -63,6 +63,7 @@ internal class DHTServiceGrpcServerImpl(
     private val hashStrategy: HashStrategy,
     coroutineContext: CoroutineContext,
 ) :
+    // TODO: Check all visibilities
     DHTService,
     DHTServiceGrpc,
     DHTServiceServerStub by DHTServiceServerStubImpl(coroutineContext, nodeStubStrategy),
@@ -157,6 +158,7 @@ internal class DHTServiceGrpcServerImpl(
     override suspend fun join(request: JoinRequest): JoinResponse {
         logger.info("Received JOIN request...")
 
+        // TODO: Refactor this to remove the function execution from the response builder
         return joinResponse {
             result = let {
                 val newNode = request.node.asDomain
@@ -181,6 +183,7 @@ internal class DHTServiceGrpcServerImpl(
     override suspend fun joinOk(request: JoinOkRequest): JoinOkResponse {
         logger.info("Received JOIN_OK request...")
 
+        // TODO: Refactor this to remove the function execution from the response builder
         return joinOkResponse {
             result = request.nextOrNull?.asDomain?.let { node ->
                 next = node
@@ -200,6 +203,7 @@ internal class DHTServiceGrpcServerImpl(
     override suspend fun newNode(request: NewNodeRequest): NewNodeResponse {
         logger.info("Received NEW_NODE request...")
 
+        // TODO: Refactor this to remove the function execution from the response builder
         return newNodeResponse {
             result = let {
                 next = request.node.asDomain
@@ -220,6 +224,7 @@ internal class DHTServiceGrpcServerImpl(
     override suspend fun leave(request: LeaveRequest): LeaveResponse {
         logger.info("Received LEAVE request...")
 
+        // TODO: Refactor this to remove the function execution from the response builder
         return leaveResponse {
             result = let {
                 previous = request.previousOrNull?.asDomain?.takeIf { it != info }

@@ -17,7 +17,6 @@ import io.github.vinicreis.dht.core.model.request.setRequest
 import io.github.vinicreis.dht.core.model.request.transferRequest
 import io.github.vinicreis.dht.core.service.domain.DHTServiceServerStub
 import io.github.vinicreis.dht.model.service.Node
-import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import java.util.logging.Logger
@@ -162,6 +161,7 @@ internal class DHTServiceServerStubImpl(
         withContext(coroutineContext) {
             withServerStub {
                 transfer(
+                    // TODO: Refactor to move to an extension property
                     flow {
                         data.iterator().forEach { data ->
                             emit(
