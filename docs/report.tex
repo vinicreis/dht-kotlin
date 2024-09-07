@@ -1,0 +1,59 @@
+\documentclass{article}
+
+\usepackage[brazilian]{babel}
+\usepackage[letterpaper,top=2cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+
+\title{DHT Service}
+\author{Vinícius de Oliveira Campos dos Reis
+\and 11041416}
+\date{}
+
+\begin{document}
+    \maketitle
+
+    \section{O projeto}\label{sec:introducao}
+
+    O projeto é uma implementação em Kotlin que utiliza o Gradle como compilador e gerenciador de dependências.
+    A arquitetura de cada componente da aplicação é multi-módulos, seguindo ao máximo uma arquitetura limpa e orientada a domínios.
+
+    \section{Vídeo}\label{sec:video}
+
+    O link para o vídeo de apresentação e demonstração pode ser encontrado \href{}{neste link}.
+
+    \section{Como executar}\label{sec:como-executar}
+
+    Todos módulos neste projeto podem ser executados através do Makefile na raiz do projeto, cada um com seu target.
+    Confira abaixo como cada um deles pode ser executado:
+
+    \begin{itemize}
+        \item Servidor DHT: \textit{make dht}
+        \item Sample - Cofre de senhas: \textit{make sample\_vault}
+    \end{itemize}
+
+    \section{Implementação}\label{sec:implementacao}
+
+    \subsection{Servidor}\label{subsec:server}
+
+    A lógica principal do funcionamento do servidor está implementada na classe \textit{DHTServiceServerGrpcImpl}.
+
+    O funcionamento do servidor é baseado no algoritmo de tabelas de hash distribuídas (DHT) em um formato de anel, como proposto para o projeto.
+
+    O contrato implementado por esta classe é muito semelhante ao que foi proposto no enunciado.
+
+    A maior dificuldade encontrada no desenvolvimento foi criar testes unitários para validação e coordenar mais de dois nós na rede.
+    Gerenciar diferentes chamadas via gRPC foi um desafio superado, pois os canais que são criados precisam ser fechados após o uso.
+    Isso por que estes canais podem ser coletados pelo garbage collector caso fiquem inativos por longos períodos.
+
+    \subsection{Sample - Cofre de Senhas (Key Vault)}\label{subsec:cliente}
+
+    Para demonstração do funcionamento da DHT, foi implementado uma aplicação simples que funciona como um cofre de senhas.
+
+    Esta aplicação implementa um cliente gRPC que se conecta ao servidor DHT e armazena senhas como pares de chave e valor.
+
+    Dado o funcionamento da DHT, a aplicação é capaz de armazenar, deletar e recuperar senhas de forma distribuída.
+
+\end{document}

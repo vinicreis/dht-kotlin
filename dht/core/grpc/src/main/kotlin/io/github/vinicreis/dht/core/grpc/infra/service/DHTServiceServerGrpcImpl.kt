@@ -263,8 +263,10 @@ internal class DHTServiceServerGrpcImpl(
         coroutineScope {
             requests
                 .onStart { logger.fine("Collecting transfer requests...") }
-                .onCompletion { logger.info("Transfer requests collection finished!\nNow responsible for keys ${data.keys}") }
-                .collect { request ->
+                .onCompletion {
+                    logger.info("Transfer requests collection finished!")
+                    logger.info("Node is now responsible for keys ${data.keys}")
+                }.collect { request ->
                     data[request.key.toStringUtf8()] = request.data.content.toByteArray()
                 }
         }

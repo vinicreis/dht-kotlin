@@ -22,7 +22,6 @@ sample_vault_build: sample_vault_clean
 	@rmdir $(SAMPLE_VAULT_OUT_PATH)/dht-vault-sample-*
 
 sample_vault_clean:
-	@echo "Stopping service..."
 	@echo "Cleaning up sample Gradle projects"
 	@rm -rf $(SAMPLE_VAULT_OUT_PATH)
 	@./gradlew -q sample-vault:core:core-model:clean
@@ -42,7 +41,6 @@ dht_build: dht_clean
 	@rmdir $(OUT_PATH)/dht-*
 
 dht_clean:
-	@echo "Stopping service..."
 	@echo "Cleaning up dht Gradle projects"
 	@rm -rf $(OUT_PATH)
 	@./gradlew -q dht:core:model:clean \

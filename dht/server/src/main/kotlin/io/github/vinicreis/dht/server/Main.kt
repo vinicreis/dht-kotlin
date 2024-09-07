@@ -12,18 +12,29 @@ import kotlinx.coroutines.runBlocking
 import java.io.InputStream
 import java.util.logging.Logger
 
-data class Arguments(val id: Long, val port: Int) {
-    constructor(args: Array<String>) : this(args[0].toLong(), args[1].toInt())
+data class Arguments(val id: Long, val port: Port) {
+    companion object {
+        fun build(args: Array<String>): Arguments? {
+            val id = args.getOrNull(1)?.toLongOrNull()
+            val port = args.getOrNull(0)?.toIntOrNull()
+
+            return if (port == null || id == null) {
+                return null
+            } else {
+                Arguments(id, Port(port))
+            }
+        }
+    }
 }
 
 fun main(args: Array<String>) {
-    val arguments = Arguments(args)
+    val arguments = Arguments.build(args) ?: getArguments()
     val logger = Logger.getLogger("DHTServer")
     val service = DHTServiceGrpc(
         info = Node(
             id = arguments.id,
             address = Address("localhost"),
-            port = Port(arguments.port),
+            port = arguments.port,
         ),
         knownNodes = getHosts(),
         hashStrategy = HashStrategyMD5(4L),
@@ -39,6 +50,19 @@ fun main(args: Array<String>) {
         service.leave()
         Logger.getLogger("Main").info("Node left gracefully!")
     }
+}
+
+private fun input(messsage: String, default: String? = null): String? {
+    print("$messsage${default?.let { " [$it]" }.orEmpty()}: ")
+
+    return readlnOrNull()?.takeIf { it.isNotBlank() } ?: default
+}
+
+private fun getArguments(): Arguments {
+    val id = input("Enter the node ID")?.toLong() ?: return getArguments()
+    val port = input("Enter the port", "10090")?.toInt() ?: return getArguments()
+
+    return Arguments(id, Port(port))
 }
 
 private const val HOSTS_FILE = "hosts.json"

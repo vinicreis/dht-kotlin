@@ -5,7 +5,7 @@ plugins {
 
 application {
     applicationName = "dht-service"
-    mainClass.set("io.github.vinicreis.dht.app.java.MainKt")
+    mainClass.set("io.github.vinicreis.dht.server.MainKt")
 }
 
 dependencies {
