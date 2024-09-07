@@ -1,8 +1,8 @@
 package io.github.vinicreis.dht.core.grpc.infra.service
 
 import com.google.protobuf.ByteString
-import io.github.vinicreis.dht.core.grpc.domain.strategy.NodeStubStrategy
-import io.github.vinicreis.dht.core.grpc.infra.extensions.asByteString
+import io.github.vinicreis.dht.core.grpc.domain.strategy.ClientStubStrategy
+import io.github.vinicreis.dht.core.grpc.domain.extensions.asByteString
 import io.github.vinicreis.dht.core.model.DataTypeOuterClass
 import io.github.vinicreis.dht.core.model.data
 import io.github.vinicreis.dht.core.model.request.foundRequest
@@ -15,17 +15,17 @@ import kotlin.coroutines.CoroutineContext
 
 internal class DHTServiceClientStubImpl(
     private val coroutineContext: CoroutineContext,
-    private val nodeStubStrategy: NodeStubStrategy,
-    private val logger: Logger = Logger.getLogger(DHTServiceGrpcServerImpl::class.java.simpleName)
+    private val stubStrategy: ClientStubStrategy,
+    private val logger: Logger = Logger.getLogger(DHTServiceServerGrpcImpl::class.java.simpleName)
 ) :
     DHTServiceClientStub,
-    NodeStubStrategy by nodeStubStrategy
+    ClientStubStrategy by stubStrategy
 {
     override suspend fun Node.found(key: String, data: ByteArray) {
         withContext(coroutineContext) {
-            logger.info("Sending FOUND to $id")
+            logger.fine("Sending FOUND to $id")
 
-            withClientStub {
+            withStub {
                 found(
                     foundRequest {
                         this.key = key.asByteString
@@ -41,9 +41,9 @@ internal class DHTServiceClientStubImpl(
 
     override suspend fun Node.notFound(key: String) {
         withContext(coroutineContext) {
-            logger.info("Sending NOT_FOUND to $id")
+            logger.fine("Sending NOT_FOUND to $id")
 
-            withClientStub {
+            withStub {
                 notFound(
                     notFoundRequest {
                         this.key = key.asByteString

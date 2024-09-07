@@ -29,9 +29,9 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 include("dht:core:model")
 include("dht:core:service")
-include("dht:core:domain")
 include("dht:core:grpc")
-include("dht:java-app")
+include("dht:core:util")
+include("dht:server")
 include("dht:client")
 
 include("sample-vault:core:core-model")

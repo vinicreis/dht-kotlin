@@ -1,4 +1,4 @@
-package io.github.vinicreis.dht.app.java
+package io.github.vinicreis.dht.server
 
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken

@@ -1,28 +1,24 @@
-package io.github.vinicreis.dht.sample.vault.domain.service
+package io.github.vinicreis.dht.sample.vault.infra.service
 
-import io.github.vinicreis.dht.library.infra.DHTClient
+import io.github.vinicreis.dht.client.domain.DHT
 import io.github.vinicreis.dht.model.service.Node
+import io.github.vinicreis.dht.sample.vault.domain.service.VaultService
 import io.github.vinicreis.dht.sample.vault.model.Secret
+import java.util.logging.Logger
 import kotlin.coroutines.CoroutineContext
 
-class VaultServiceImpl(
+internal class VaultServiceImpl(
     servers: List<Node>,
     client: Node,
+    logger: Logger,
     coroutineContext: CoroutineContext,
 ) : VaultService {
-    private val service = DHTClient(
+    private val service = DHT(
         info = client,
         servers = servers,
+        logger = logger,
         coroutineContext = coroutineContext,
     )
-
-    override fun start() {
-        service.start()
-    }
-
-    override fun shutdown() {
-        service.shutdown()
-    }
 
     override suspend fun get(key: String): Secret? {
         return service.get(key)?.let { bytes ->

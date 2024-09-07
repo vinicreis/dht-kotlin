@@ -1,4 +1,4 @@
-package io.github.vinicreis.dht.core.grpc.infra.extensions
+package io.github.vinicreis.dht.core.grpc.domain.extensions
 
 import com.google.protobuf.ByteString
 

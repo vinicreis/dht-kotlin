@@ -1,10 +1,9 @@
 package io.github.vinicreis.dht.core.grpc.domain.service
 
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import io.github.vinicreis.dht.core.grpc.domain.strategy.HashStrategy
-import io.github.vinicreis.dht.core.grpc.infra.service.DHTServiceGrpcServerImpl
-import io.github.vinicreis.dht.core.grpc.infra.strategy.NodeStubStrategyGrpc
+import io.github.vinicreis.dht.core.grpc.infra.service.DHTServiceServerGrpcImpl
+import io.github.vinicreis.dht.core.grpc.infra.strategy.ClientStubStrategyGrpc
+import io.github.vinicreis.dht.core.grpc.infra.strategy.ServerStubStrategyGrpc
 import io.github.vinicreis.dht.core.model.request.GetRequestOuterClass.GetRequest
 import io.github.vinicreis.dht.core.model.request.JoinOkRequestOuterClass.JoinOkRequest
 import io.github.vinicreis.dht.core.model.request.JoinRequestOuterClass.JoinRequest
@@ -21,12 +20,9 @@ import io.github.vinicreis.dht.core.model.response.NewNodeResponseOuterClass.New
 import io.github.vinicreis.dht.core.model.response.NodeGoneResponseOuterClass.NodeGoneResponse
 import io.github.vinicreis.dht.core.model.response.SetResponseOuterClass.SetResponse
 import io.github.vinicreis.dht.core.model.response.TransferResponseOuterClass.TransferResponse
-import io.github.vinicreis.dht.core.service.domain.DHTService
-import io.github.vinicreis.dht.model.service.Address
+import io.github.vinicreis.dht.core.service.domain.DHTServiceServer
 import io.github.vinicreis.dht.model.service.Node
-import io.github.vinicreis.dht.model.service.Port
 import kotlinx.coroutines.flow.Flow
-import java.io.InputStream
 import java.util.logging.Logger
 import kotlin.coroutines.CoroutineContext
 
@@ -36,16 +32,17 @@ fun DHTServiceGrpc(
     coroutineContext: CoroutineContext,
     knownNodes: List<Node>,
     logger: Logger,
-): DHTService = DHTServiceGrpcServerImpl(
+): DHTServiceServer = DHTServiceServerGrpcImpl(
     info = info,
     knownNodes = knownNodes,
     coroutineContext = coroutineContext,
     hashStrategy = hashStrategy,
-    nodeStubStrategy = NodeStubStrategyGrpc(),
+    serverStubStrategy = ServerStubStrategyGrpc(),
+    clientStubStrategy = ClientStubStrategyGrpc(),
     logger = logger,
 )
 
-interface DHTServiceGrpc {
+interface DHTServiceServerGrpc {
     suspend fun join(request: JoinRequest): JoinResponse
     suspend fun joinOk(request: JoinOkRequest): JoinOkResponse
     suspend fun newNode(request: NewNodeRequest): NewNodeResponse

@@ -7,14 +7,12 @@ import io.github.vinicreis.dht.model.service.Node
 import io.github.vinicreis.dht.model.service.Port
 import io.github.vinicreis.dht.sample.vault.app.model.Option
 import io.github.vinicreis.dht.sample.vault.domain.service.VaultService
-import io.github.vinicreis.dht.sample.vault.domain.service.VaultServiceImpl
 import io.github.vinicreis.dht.sample.vault.model.Secret
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import java.io.InputStream
 import java.util.logging.Logger
-import kotlin.concurrent.thread
 import kotlin.system.exitProcess
 
 private const val DEFAULT_PORT = 10100
@@ -27,22 +25,16 @@ fun main() {
         logger.severe(t.message)
     }
 
-    val service = VaultServiceImpl(
+    val service = VaultService(
         servers = getHosts(),
         client = Node(
             id = 1L,
             address = Address("localhost"),
             port = clientPort,
         ),
+        logger = logger,
         coroutineContext = Dispatchers.IO + coroutineExceptionHandler,
-    ).apply { start() }
-
-    Runtime.getRuntime().addShutdownHook(
-        thread(start = false, name = "Shutdown-Thread") { service.shutdown() }
     )
-
-    // TODO: Delete after development
-    setInitialData(service)
 
     while (true) {
         when(selectOption()) {
@@ -62,17 +54,6 @@ private val hostsFile: InputStream
 
 private fun getHosts(): List<Node> {
     return Gson().fromJson<Array<Node>?>(hostsFile.reader(), TypeToken.getArray(Node::class.java).type).toList()
-}
-
-@Deprecated("Delete after development")
-private fun setInitialData(service: VaultService) {
-    runBlocking {
-        service.set(Secret("1", "ola"))
-        service.set(Secret("2", "mundo"))
-        service.set(Secret("3", "mundao"))
-        service.set(Secret("uaisho", "Outra senha"))
-        service.set(Secret("8", "Nova info"))
-    }
 }
 
 private fun input(message: String, default: String? = null): String? {

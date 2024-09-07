@@ -1,7 +1,7 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="RunServer" type="JetRunConfigurationType">
-    <option name="MAIN_CLASS_NAME" value="io.github.vinicreis.dht.app.java.MainKt" />
-    <module name="dht-kotlin.dht.java-app.main" />
+    <option name="MAIN_CLASS_NAME" value="io.github.vinicreis.dht.server.MainKt" />
+    <module name="dht-kotlin.dht.server.main" />
     <option name="PROGRAM_PARAMETERS" value="0 10090" />
     <shortenClasspath name="NONE" />
     <method v="2">

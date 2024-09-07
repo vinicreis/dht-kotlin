@@ -7,6 +7,9 @@ SAMPLE_VAULT_OUT_PATH=sample-vault/out
 build: dht_build sample_vault_build
 clean: dht_clean sample_vault_clean
 
+sample_vault: sample_vault_build
+	@$(SAMPLE_VAULT_OUT_PATH)/bin/dht-vault-sample
+
 sample_vault_build: sample_vault_clean
 	@echo "Building vault sample..."
 	@./gradlew -q sample-vault:java-app:assembleDist
@@ -24,22 +27,15 @@ sample_vault_clean:
 	@rm -rf $(SAMPLE_VAULT_OUT_PATH)
 	@./gradlew -q sample-vault:core:core-model:clean
 
-dht_all: dht_build
-	@echo "Starting service..."
-	@$(OUT_PATH)/bin/dht-service 0 10090 #&
-#	@$(OUT_PATH)/bin/dht-service 1 10091 &
-#	@$(OUT_PATH)/bin/dht-service 2 10092 &
-#	@$(OUT_PATH)/bin/dht-service 3 10093 &
-
 dht: dht_build
 	@$(OUT_PATH)/bin/dht-service
 
 dht_build: dht_clean
 	@echo "Building server..."
-	@./gradlew -q dht:java-app:assembleDist
+	@./gradlew -q dht:server:assembleDist
 	@echo "Moving ang unpacking client executable..."
 	@mkdir -p $(OUT_PATH)
-	@cp dht/java-app/build/distributions/*.tar $(OUT_PATH)/dht.tar
+	@cp dht/server/build/distributions/*.tar $(OUT_PATH)/dht.tar
 	@tar -xf $(OUT_PATH)/dht.tar -C $(OUT_PATH)
 	@rm $(OUT_PATH)/*.tar
 	@mv -f $(OUT_PATH)/dht-*/* $(OUT_PATH)
@@ -52,4 +48,4 @@ dht_clean:
 	@./gradlew -q dht:core:model:clean \
                   dht:core:service:clean \
                   dht:core:grpc:clean \
-                  dht:java-app:clean
+                  dht:server:clean

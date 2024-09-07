@@ -26,11 +26,11 @@
             <option value="$PROJECT_DIR$/dht" />
             <option value="$PROJECT_DIR$/dht/client" />
             <option value="$PROJECT_DIR$/dht/core" />
-            <option value="$PROJECT_DIR$/dht/core/domain" />
             <option value="$PROJECT_DIR$/dht/core/grpc" />
             <option value="$PROJECT_DIR$/dht/core/model" />
             <option value="$PROJECT_DIR$/dht/core/service" />
-            <option value="$PROJECT_DIR$/dht/java-app" />
+            <option value="$PROJECT_DIR$/dht/core/util" />
+            <option value="$PROJECT_DIR$/dht/server" />
             <option value="$PROJECT_DIR$/sample-vault" />
             <option value="$PROJECT_DIR$/sample-vault/core" />
             <option value="$PROJECT_DIR$/sample-vault/core/core-model" />

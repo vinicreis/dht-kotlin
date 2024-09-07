@@ -1,10 +1,10 @@
-package io.github.vinicreis.dht.library.infra
+package io.github.vinicreis.dht.client.infra
 
 import com.google.protobuf.ByteString
-import io.github.vinicreis.dht.core.grpc.domain.strategy.NodeStubStrategy
-import io.github.vinicreis.dht.core.grpc.infra.extensions.asByteString
+import io.github.vinicreis.dht.core.grpc.domain.strategy.ServerStubStrategy
+import io.github.vinicreis.dht.core.grpc.domain.extensions.asByteString
 import io.github.vinicreis.dht.core.grpc.infra.mapper.asGrpc
-import io.github.vinicreis.dht.core.grpc.infra.strategy.NodeStubStrategyGrpc
+import io.github.vinicreis.dht.core.grpc.infra.strategy.ServerStubStrategyGrpc
 import io.github.vinicreis.dht.core.model.DataTypeOuterClass
 import io.github.vinicreis.dht.core.model.ResultOuterClass
 import io.github.vinicreis.dht.core.model.request.FoundRequestOuterClass.FoundRequest
@@ -16,24 +16,26 @@ import io.github.vinicreis.dht.core.model.response.FoundResponseOuterClass.Found
 import io.github.vinicreis.dht.core.model.response.NotFoundResponseOuterClass.NotFoundResponse
 import io.github.vinicreis.dht.core.model.response.foundResponse
 import io.github.vinicreis.dht.core.model.response.notFoundResponse
-import io.github.vinicreis.dht.core.service.DHTServiceClientGrpcKt
+import io.github.vinicreis.dht.core.service.DHTServiceClientGrpcKt.DHTServiceClientCoroutineImplBase
 import io.github.vinicreis.dht.core.service.DHTServiceGrpcKt.DHTServiceCoroutineStub
-import io.github.vinicreis.dht.library.domain.DHT
+import io.github.vinicreis.dht.client.domain.DHT
 import io.github.vinicreis.dht.model.service.Node
 import io.grpc.Grpc
 import io.grpc.InsecureServerCredentials
 import kotlinx.coroutines.channels.Channel
 import java.net.ConnectException
+import java.util.logging.Logger
 import kotlin.coroutines.CoroutineContext
 
-class DHTClient(
+internal class DHTClient(
     private val info: Node,
     private val servers: List<Node>,
+    private val logger: Logger,
     coroutineContext: CoroutineContext,
 ) :
     DHT,
-    DHTServiceClientGrpcKt.DHTServiceClientCoroutineImplBase(coroutineContext),
-    NodeStubStrategy by NodeStubStrategyGrpc()
+    DHTServiceClientCoroutineImplBase(coroutineContext),
+    ServerStubStrategy by ServerStubStrategyGrpc()
 {
     private val messages = Channel<ByteArray?>(Channel.UNLIMITED)
     private val server = Grpc.newServerBuilderForPort(info.port.value, InsecureServerCredentials.create())
@@ -100,10 +102,12 @@ class DHTClient(
     }
 
     private suspend fun <T> withFirstAvailableServer(block: suspend DHTServiceCoroutineStub.() -> T): T {
-        try {
-            servers.forEach { server -> return server.withServerStub(block) }
-        } catch (e: ConnectException) {
-            // TODO: Add log
+        for (server in servers) {
+            try {
+                return server.withStub(block)
+            } catch (e: ConnectException) {
+                logger.info("Server $server is not available yet")
+            }
         }
 
         throw IllegalStateException("No available DHT server found")
