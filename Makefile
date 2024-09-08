@@ -26,6 +26,9 @@ sample_vault_clean:
 	@rm -rf $(SAMPLE_VAULT_OUT_PATH)
 	@./gradlew -q sample-vault:core:core-model:clean
 
+dht_debug: dht_build
+	@$(OUT_PATH)/bin/dht-service --debug
+
 dht: dht_build
 	@$(OUT_PATH)/bin/dht-service
 

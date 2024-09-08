@@ -6,8 +6,7 @@ interface DHTServiceServer {
     val info: Node
     var next: Node?
     var previous: Node?
-    val data: MutableMap<String, ByteArray>
-    val responsibleForIds: MutableSet<Long>
+    val data: MutableMap<Node, MutableMap<String, ByteArray>>
 
     fun start()
     fun blockUntilShutdown()

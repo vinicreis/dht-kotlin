@@ -12,15 +12,19 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import java.io.InputStream
+import java.util.logging.Level
 import java.util.logging.Logger
 import kotlin.system.exitProcess
 
-private const val DEFAULT_PORT = 10100
+private const val DEFAULT_PORT = 10200
 
-fun main() {
-    val logger: Logger = Logger.getLogger("SampleMainLogger")
+fun main(args: Array<String>) {
+    val debug = args.contains("--debug")
     val clientPortValue = input("Enter your port", DEFAULT_PORT.toString())?.toIntOrNull() ?: return
     val clientPort = Port(clientPortValue)
+    val logger: Logger = Logger.getLogger("SampleMainLogger").apply {
+        if(debug) level = Level.FINEST
+    }
     val coroutineExceptionHandler = CoroutineExceptionHandler { _, t ->
         logger.severe(t.message)
     }

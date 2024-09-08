@@ -48,6 +48,7 @@ import io.grpc.StatusException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import java.util.concurrent.ConcurrentHashMap
 import java.util.logging.Logger
@@ -69,7 +70,7 @@ internal class DHTServiceServerGrpcImpl(
     DHTServiceServerStub by DHTServiceServerStubImpl(coroutineContext, serverStubStrategy),
     DHTServiceClientStub by DHTServiceClientStubImpl(coroutineContext, clientStubStrategy)
 {
-    override val data: MutableMap<String, ByteArray> = ConcurrentHashMap()
+    override val data: MutableMap<Node, MutableMap<String, ByteArray>> = ConcurrentHashMap()
     override var next: Node? by vetoable(null) { _, _, new ->
         new == null || new != info
     }
@@ -78,7 +79,6 @@ internal class DHTServiceServerGrpcImpl(
         new == null || new != info
     }
 
-    override val responsibleForIds = knownNodes.map { it.id }.toMutableSet()
     private val queue = JobQueueService(coroutineContext)
     private val server = Grpc.newServerBuilderForPort(info.port.value, InsecureServerCredentials.create())
         .addService(this)
@@ -99,6 +99,8 @@ internal class DHTServiceServerGrpcImpl(
     }
 
     override suspend fun join(nodes: List<Node>) {
+        data[info] = ConcurrentHashMap()
+
         for (node in nodes) {
             if(node == info) continue
 
@@ -107,6 +109,8 @@ internal class DHTServiceServerGrpcImpl(
 
                 if (result.isSuccess && result.getOrElse { false }) break
             } catch (e: StatusException) {
+                data[node] = ConcurrentHashMap()
+
                 when(e.status.code) {
                     null -> logger.severe("Join failed without status code")
                     Status.Code.UNIMPLEMENTED -> logger.severe("Join call is not implemented on server")
@@ -115,9 +119,9 @@ internal class DHTServiceServerGrpcImpl(
                     Status.Code.DEADLINE_EXCEEDED,
                     Status.Code.CANCELLED,
                     Status.Code.ABORTED,
-                    Status.Code.NOT_FOUND -> logger.info("$node might not be available yet. Skipping...")
+                    Status.Code.NOT_FOUND -> logger.fine("$node might not be available yet. Skipping...")
                     Status.Code.PERMISSION_DENIED,
-                    Status.Code.UNAUTHENTICATED -> logger.info("Join failed by authentication error")
+                    Status.Code.UNAUTHENTICATED -> logger.fine("Join failed by authentication error")
                     Status.Code.INVALID_ARGUMENT,
                     Status.Code.FAILED_PRECONDITION,
                     Status.Code.OUT_OF_RANGE,
@@ -126,10 +130,12 @@ internal class DHTServiceServerGrpcImpl(
                     Status.Code.DATA_LOSS,
                     Status.Code.UNKNOWN,
                     Status.Code.RESOURCE_EXHAUSTED,
-                    Status.Code.INTERNAL -> logger.info("Join failed by internal error ${e.status.code}")
+                    Status.Code.INTERNAL -> logger.fine("Join failed by internal error ${e.status.code}")
                 }
             }
         }
+
+        logger.fine("$info responsible for ${data.keys}")
     }
 
     override suspend fun leave() {
@@ -152,8 +158,8 @@ internal class DHTServiceServerGrpcImpl(
                 newNode.joinOk(info, previous ?: info)
                 newNode.transfer(info, data from newNode)
                 data removeFrom newNode
-                responsibleForIds.remove(newNode.id)
                 previous = newNode
+                logger.fine("$info responsible for ${data.keys}")
             }
         }
 
@@ -170,10 +176,7 @@ internal class DHTServiceServerGrpcImpl(
         previous = request.previousOrNull?.asDomain
 
         queue { previous?.newNode(info) }
-        responsibleForIds.apply {
-            clear()
-            add(info.id)
-        }
+        data.clear()
 
         return joinOkResponse { result = Result.SUCCESS }
     }
@@ -198,7 +201,7 @@ internal class DHTServiceServerGrpcImpl(
         logger.fine("Received LEAVE request...")
 
         previous = request.previousOrNull?.asDomain?.takeIf { it != info }
-        responsibleForIds.add(request.node.asDomain.id)
+        data[request.node.asDomain] = ConcurrentHashMap()
 
         return leaveResponse { result = Result.SUCCESS }
     }
@@ -210,8 +213,8 @@ internal class DHTServiceServerGrpcImpl(
             val key = request.key.toStringUtf8()
 
             when {
-                info isResponsibleFor key -> {
-                    data[key]?.let { bytes ->
+                isResponsibleFor(key) -> {
+                    (data get key)?.let { bytes ->
                         request.node.asDomain.found(key, bytes)
                     } ?: request.node.asDomain.notFound(key)
                 }
@@ -230,7 +233,7 @@ internal class DHTServiceServerGrpcImpl(
             val key = request.key.toStringUtf8()
 
             when {
-                info isResponsibleFor key -> data[key] = request.data.content.toByteArray()
+                isResponsibleFor(key) -> data.set(key, request.data.content.toByteArray())
                 next == null -> error("Node should be responsible for this key or have a next node")
                 else -> next!!.set(request.node.asDomain, key, request.data.content.toByteArray())
             }
@@ -246,7 +249,7 @@ internal class DHTServiceServerGrpcImpl(
             val key = request.key.toStringUtf8()
 
             when {
-                info isResponsibleFor key -> data.remove(key)?.let {
+                isResponsibleFor(key) -> data[info]?.remove(key)?.let {
                     request.node.asDomain.found(key, it)
                 } ?: request.node.asDomain.notFound(key)
                 next == null -> error("$info should be responsible for this key or have a next node")
@@ -263,38 +266,46 @@ internal class DHTServiceServerGrpcImpl(
         coroutineScope {
             requests
                 .onStart { logger.fine("Collecting transfer requests...") }
+                .onEach { logger.fine("Received data from ${it.node.asDomain} key ${it.key.toStringUtf8()}") }
                 .onCompletion {
-                    logger.info("Transfer requests collection finished!")
-                    logger.info("Node is now responsible for keys ${data.keys}")
+                    logger.fine("Transfer requests collection finished!")
+                    logger.fine("$info responsible for ${data.keys}")
                 }.collect { request ->
-                    data[request.key.toStringUtf8()] = request.data.content.toByteArray()
+                    if(request.hasKey().not()) {
+                        data.getOrPut(request.node.asDomain) { ConcurrentHashMap() }
+                    } else {
+                        data.getOrPut(request.node.asDomain) {
+                            ConcurrentHashMap()
+                        }[request.key.toStringUtf8()] = request.data.content.toByteArray()
+                    }
                 }
         }
 
         return transferResponse { result = Result.SUCCESS }
     }
 
-    private infix fun Map<String, ByteArray>.from(node: Node) = filter { entry -> hashStrategy(entry.key) == node.id }
+    private infix fun Map<Node, Map<String, ByteArray>>.get(key: String): ByteArray? =
+        this[keys.first { it.id == hashStrategy(key) }]!![key]
 
-    private infix fun <V> MutableMap<String, V>.removeFrom(node: Node) {
-        keys.asSequence()
-            .filter { key -> key belongsTo node }
-            .forEach { key -> remove(key)?.let { logger.info("Removed key $key") } }
+    private fun Map<Node, MutableMap<String, ByteArray>>.set(key: String, data: ByteArray) {
+        this[keys.first { it.id == hashStrategy(key) }]!![key] = data
     }
 
-    private infix fun String.belongsTo(node: Node): Boolean {
-        return node.id == hashStrategy(this)
+    private infix fun Map<Node, Map<String, ByteArray>>.from(node: Node) = filter { (n, _) -> n == node }
+
+    private infix fun MutableMap<Node, MutableMap<String, ByteArray>>.removeFrom(node: Node) {
+        (this from node).forEach { (node, _) -> remove(node)?.let { logger.fine("Removed data from $node") } }
     }
 
-    private infix fun Node.isResponsibleFor(key: String): Boolean {
-        return responsibleForIds.any { id -> id == hashStrategy(key) }
+    private fun isResponsibleFor(key: String): Boolean {
+        return data.any { (node, _) -> node.id == hashStrategy(key) }
     }
 
-    private infix fun Node.isResponsibleFor(node: Node): Boolean {
-        return responsibleForIds.any { id -> id == node.id }
+    private fun isResponsibleFor(node: Node): Boolean {
+        return data.containsKey(node)
     }
 
     private infix fun Node.isNotResponsibleFor(node: Node): Boolean {
-        return (this isResponsibleFor node).not()
+        return isResponsibleFor(node).not()
     }
 }

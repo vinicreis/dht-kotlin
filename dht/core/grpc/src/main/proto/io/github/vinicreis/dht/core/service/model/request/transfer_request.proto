@@ -7,6 +7,6 @@ import "io/github/vinicreis/dht/core/model/data.proto";
 
 message TransferRequest {
   Node node = 1;
-  bytes key = 2;
-  Data data = 3;
+  optional bytes key = 2;
+  optional Data data = 3;
 }

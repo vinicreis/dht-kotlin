@@ -158,24 +158,30 @@ internal class DHTServiceServerStubImpl(
         }
     }
 
-    override suspend fun Node.transfer(info: Node, data: Map<String, ByteArray>) {
+    override suspend fun Node.transfer(info: Node, data: Map<Node, Map<String, ByteArray>>) {
         logger.fine("Sending TRANSFER to $this")
 
         withContext(coroutineContext) {
-            withStub { transfer(data asFlowFrom info) }
+            withStub { transfer(data.asFlowFrom()) }
         }
     }
 
-    private infix fun Map<String, ByteArray>.asFlowFrom(node: Node): Flow<TransferRequest> = flow {
-        iterator().forEach { data ->
-            emit(
+    private fun Map<Node, Map<String, ByteArray>>.asFlowFrom(): Flow<TransferRequest> = flow {
+        iterator().forEach { (node, data) ->
+            data.takeIf { it.isNotEmpty() }?.forEach { (key, value) ->
+                emit(
+                    transferRequest {
+                        this.node = node.asGrpc
+                        this.key = key.asByteString
+                        this.data = io.github.vinicreis.dht.core.model.data {
+                            type = DataTypeOuterClass.DataType.BYTE
+                            content = ByteString.copyFrom(value)
+                        }
+                    }
+                )
+            } ?: emit(
                 transferRequest {
                     this.node = node.asGrpc
-                    key = data.key.asByteString
-                    this.data = io.github.vinicreis.dht.core.model.data {
-                        type = DataTypeOuterClass.DataType.BYTE
-                        content = ByteString.copyFrom(data.value)
-                    }
                 }
             )
         }

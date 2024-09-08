@@ -1,8 +1,9 @@
 package io.github.vinicreis.dht.client.infra
 
 import com.google.protobuf.ByteString
-import io.github.vinicreis.dht.core.grpc.domain.strategy.ServerStubStrategy
+import io.github.vinicreis.dht.client.domain.DHT
 import io.github.vinicreis.dht.core.grpc.domain.extensions.asByteString
+import io.github.vinicreis.dht.core.grpc.domain.strategy.ServerStubStrategy
 import io.github.vinicreis.dht.core.grpc.infra.mapper.asGrpc
 import io.github.vinicreis.dht.core.grpc.infra.strategy.ServerStubStrategyGrpc
 import io.github.vinicreis.dht.core.model.DataTypeOuterClass
@@ -18,12 +19,10 @@ import io.github.vinicreis.dht.core.model.response.foundResponse
 import io.github.vinicreis.dht.core.model.response.notFoundResponse
 import io.github.vinicreis.dht.core.service.DHTServiceClientGrpcKt.DHTServiceClientCoroutineImplBase
 import io.github.vinicreis.dht.core.service.DHTServiceGrpcKt.DHTServiceCoroutineStub
-import io.github.vinicreis.dht.client.domain.DHT
 import io.github.vinicreis.dht.model.service.Node
 import io.grpc.Grpc
 import io.grpc.InsecureServerCredentials
 import kotlinx.coroutines.channels.Channel
-import java.net.ConnectException
 import java.util.logging.Logger
 import kotlin.coroutines.CoroutineContext
 
@@ -103,10 +102,12 @@ internal class DHTClient(
 
     private suspend fun <T> withFirstAvailableServer(block: suspend DHTServiceCoroutineStub.() -> T): T {
         for (server in servers) {
+            logger.fine("Trying to connect to server $server")
+
             try {
                 return server.withStub(block)
-            } catch (e: ConnectException) {
-                logger.info("Server $server is not available yet")
+            } catch (e: Exception) {
+                logger.fine("Server $server is not available yet")
             }
         }
 
