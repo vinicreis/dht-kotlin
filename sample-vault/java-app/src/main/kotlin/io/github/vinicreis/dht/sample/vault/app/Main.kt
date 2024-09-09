@@ -12,6 +12,7 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import java.io.InputStream
+import java.net.ConnectException
 import java.util.logging.Level
 import java.util.logging.Logger
 import kotlin.system.exitProcess
@@ -41,11 +42,15 @@ fun main(args: Array<String>) {
     )
 
     while (true) {
-        when(selectOption()) {
-            Option.GET -> get(service)
-            Option.SET -> set(service)
-            Option.REMOVE -> remove(service)
-            Option.EXIT -> exitProcess(0)
+        try {
+            when(selectOption()) {
+                Option.GET -> get(service)
+                Option.SET -> set(service)
+                Option.REMOVE -> remove(service)
+                Option.EXIT -> exitProcess(0)
+            }
+        } catch (e: ConnectException) {
+            println("Could not connect to the server. ${e.message.orEmpty()}")
         }
     }
 }
