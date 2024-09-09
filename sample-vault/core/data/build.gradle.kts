@@ -6,10 +6,7 @@ plugins {
 }
 
 dependencies {
-    implementation(projects.dht.core.model)
-    implementation(projects.dht.core.service)
-    implementation(projects.dht.core.grpc)
-    implementation(projects.dht.client)
+    implementation(projects.sampleVault.core.model)
 
     implementation(libs.google.gson)
 }

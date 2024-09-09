@@ -12,7 +12,9 @@ application {
 
 dependencies {
     implementation(projects.dht.core.model)
-    implementation(projects.sampleVault.core.coreModel)
+    implementation(projects.sampleVault.core.model)
+    implementation(projects.sampleVault.core.data)
+    implementation(projects.sampleVault.core.domain)
 
     implementation(libs.google.gson)
 }

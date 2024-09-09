@@ -1,6 +1,6 @@
 ENV_FILE_NAME=sample.env
-OUT_PATH=dht/out
-SAMPLE_VAULT_OUT_PATH=sample-vault/out
+OUT_PATH=out/dht
+SAMPLE_VAULT_OUT_PATH=out/sample-vault
 
 .PHONY: dht
 
@@ -24,7 +24,7 @@ sample_vault_build: sample_vault_clean
 sample_vault_clean:
 	@echo "Cleaning up sample Gradle projects"
 	@rm -rf $(SAMPLE_VAULT_OUT_PATH)
-	@./gradlew -q sample-vault:core:core-model:clean
+	@./gradlew -q sample-vault:clean
 
 dht_debug: dht_build
 	@$(OUT_PATH)/bin/dht-service --debug
@@ -46,7 +46,4 @@ dht_build: dht_clean
 dht_clean:
 	@echo "Cleaning up dht Gradle projects"
 	@rm -rf $(OUT_PATH)
-	@./gradlew -q dht:core:model:clean \
-                  dht:core:service:clean \
-                  dht:core:grpc:clean \
-                  dht:server:clean
+	@./gradlew -q dht:clean

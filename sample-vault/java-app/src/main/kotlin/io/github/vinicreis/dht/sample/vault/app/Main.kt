@@ -75,8 +75,7 @@ private fun selectOption(): Option {
         println("${index + 1} - $option")
     }
 
-    val option = readlnOrNull()?.toIntOrNull()?.let { Option.entries.getOrNull(it - 1) }
-    return option ?: selectOption()
+    return readlnOrNull()?.toIntOrNull()?.let { Option.fromOrdinal(it - 1) } ?: selectOption()
 }
 
 private fun get(service: VaultService) {

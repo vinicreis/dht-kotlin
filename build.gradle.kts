@@ -1,17 +1,11 @@
-allprojects {
-    afterEvaluate {
-        group = "io.github.vinicreis"
-        version = libs.versions.app.get()
-    }
-}
+subprojects {
+    tasks.configureEach {
+        fun Project.parentsNames(): String =
+            parent?.parentsNames().orEmpty() +
+                    parent?.takeIf { it.name != rootProject.name }?.let { "${it.name}-" }.orEmpty()
 
-tasks.register("clean") {
-    group = "build"
-    description = "Deletes all build directory"
-
-    subprojects.forEach {
-        it.tasks.findByName("clean")?.let { cleanTask ->
-            dependsOn(cleanTask)
+        if (this is Jar) {
+            archiveBaseName = "${parentsNames()}${project.name}"
         }
     }
 }

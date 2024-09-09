@@ -8,6 +8,6 @@ plugins {
 dependencies {
     implementation(projects.dht.core.model)
     implementation(projects.dht.core.service)
-    implementation(projects.dht.core.util)
+
     implementation(libs.google.gson)
 }
