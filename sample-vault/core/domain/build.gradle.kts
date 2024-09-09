@@ -9,7 +9,6 @@ dependencies {
     implementation(projects.dht.core.model)
     implementation(projects.dht.client)
     implementation(projects.sampleVault.core.model)
-    implementation(projects.sampleVault.core.data)
 
     implementation(libs.google.gson)
 }

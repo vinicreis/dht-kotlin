@@ -32,7 +32,6 @@
             <option value="$PROJECT_DIR$/dht/server" />
             <option value="$PROJECT_DIR$/sample-vault" />
             <option value="$PROJECT_DIR$/sample-vault/core" />
-            <option value="$PROJECT_DIR$/sample-vault/core/data" />
             <option value="$PROJECT_DIR$/sample-vault/core/domain" />
             <option value="$PROJECT_DIR$/sample-vault/core/model" />
             <option value="$PROJECT_DIR$/sample-vault/java-app" />

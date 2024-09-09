@@ -26,7 +26,6 @@ import kotlinx.coroutines.channels.Channel
 import java.net.ConnectException
 import java.util.logging.Logger
 import kotlin.coroutines.CoroutineContext
-import kotlin.math.log
 
 internal class DHTClient(
     private val info: Node,
