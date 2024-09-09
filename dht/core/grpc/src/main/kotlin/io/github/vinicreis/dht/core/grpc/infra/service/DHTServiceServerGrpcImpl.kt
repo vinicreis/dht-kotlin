@@ -249,7 +249,7 @@ internal class DHTServiceServerGrpcImpl(
             val key = request.key.toStringUtf8()
 
             when {
-                isResponsibleFor(key) -> data[info]?.remove(key)?.let {
+                isResponsibleFor(key) -> data.remove(key)?.let {
                     request.node.asDomain.found(key, it)
                 } ?: request.node.asDomain.notFound(key)
                 next == null -> error("$info should be responsible for this key or have a next node")
@@ -289,6 +289,10 @@ internal class DHTServiceServerGrpcImpl(
 
     private fun Map<Node, MutableMap<String, ByteArray>>.set(key: String, data: ByteArray) {
         this[keys.first { it.id == hashStrategy(key) }]!![key] = data
+    }
+
+    private fun Map<Node, MutableMap<String, ByteArray>>.remove(key: String): ByteArray? {
+        return this[keys.first { it.id == hashStrategy(key) }]!!.remove(key)
     }
 
     private infix fun Map<Node, Map<String, ByteArray>>.from(node: Node) = filter { (n, _) -> n == node }
