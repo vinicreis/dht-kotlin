@@ -10,6 +10,7 @@ import io.github.vinicreis.dht.core.model.request.JoinRequestOuterClass.JoinRequ
 import io.github.vinicreis.dht.core.model.request.LeaveRequestOuterClass.LeaveRequest
 import io.github.vinicreis.dht.core.model.request.NewNodeRequestOuterClass.NewNodeRequest
 import io.github.vinicreis.dht.core.model.request.NodeGoneRequestOuterClass.NodeGoneRequest
+import io.github.vinicreis.dht.core.model.request.RemoveRequestOuterClass.RemoveRequest
 import io.github.vinicreis.dht.core.model.request.SetRequestOuterClass.SetRequest
 import io.github.vinicreis.dht.core.model.request.TransferRequestOuterClass.TransferRequest
 import io.github.vinicreis.dht.core.model.response.GetResponseOuterClass.GetResponse
@@ -18,6 +19,7 @@ import io.github.vinicreis.dht.core.model.response.JoinResponseOuterClass.JoinRe
 import io.github.vinicreis.dht.core.model.response.LeaveResponseOuterClass.LeaveResponse
 import io.github.vinicreis.dht.core.model.response.NewNodeResponseOuterClass.NewNodeResponse
 import io.github.vinicreis.dht.core.model.response.NodeGoneResponseOuterClass.NodeGoneResponse
+import io.github.vinicreis.dht.core.model.response.RemoveResponseOuterClass.RemoveResponse
 import io.github.vinicreis.dht.core.model.response.SetResponseOuterClass.SetResponse
 import io.github.vinicreis.dht.core.model.response.TransferResponseOuterClass.TransferResponse
 import io.github.vinicreis.dht.core.service.domain.DHTServiceServer
@@ -50,5 +52,6 @@ interface DHTServiceServerGrpc {
     suspend fun leave(request: LeaveRequest): LeaveResponse
     suspend fun get(request: GetRequest): GetResponse
     suspend fun set(request: SetRequest): SetResponse
+    suspend fun remove(request: RemoveRequest): RemoveResponse
     suspend fun transfer(requests: Flow<TransferRequest>): TransferResponse
 }
