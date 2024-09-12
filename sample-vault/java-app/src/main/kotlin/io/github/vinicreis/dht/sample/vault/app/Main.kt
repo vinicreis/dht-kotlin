@@ -41,9 +41,15 @@ fun main(args: Array<String>) {
         coroutineContext = Dispatchers.IO + coroutineExceptionHandler,
     )
 
+    clear()
+
     while (true) {
         try {
-            when(selectOption()) {
+            val selectedOption = selectOption()
+
+            clear()
+
+            when(selectedOption) {
                 Option.GET -> get(service)
                 Option.SET -> set(service)
                 Option.REMOVE -> remove(service)
@@ -73,6 +79,10 @@ private fun input(message: String, default: String? = null): String? {
     return readlnOrNull()?.takeIf { it.isNotBlank() } ?: default
 }
 
+private fun clear() {
+    print("\u001b[H\u001b[2J")
+}
+
 private fun selectOption(): Option {
     println("Select an option:")
 
@@ -89,7 +99,7 @@ private fun get(service: VaultService) {
 
         service.get(key)?.also { secret ->
             println("Secret found! ${secret.key} = ${secret.value}")
-        } ?: println("No secrey found for key $key")
+        } ?: println("No secret found for key $key")
     }
 }
 
