@@ -2,10 +2,13 @@
 
 \usepackage[brazilian]{babel}
 \usepackage[letterpaper,top=2cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+\usepackage{indentfirst}
 
 \usepackage{amsmath}
 \usepackage{graphicx}
 \usepackage[colorlinks=true, allcolors=blue]{hyperref}
+
+\setlength{\parindent}{1.0cm}
 
 \title{DHT Service}
 \author{Vinícius de Oliveira Campos dos Reis
@@ -22,7 +25,7 @@
 
     \section{Vídeo}\label{sec:video}
 
-    O link para o vídeo de apresentação e demonstração pode ser encontrado \href{}{neste link}.
+    O link para o vídeo de apresentação e demonstração pode ser encontrado \href{https://youtu.be/ouySVTWPqMg}{neste link}.
 
     \section{Como executar}\label{sec:como-executar}
 
@@ -41,7 +44,6 @@
     A lógica principal do funcionamento do servidor está implementada na classe \textit{DHTServiceServerGrpcImpl}.
 
     O funcionamento do servidor é baseado no algoritmo de tabelas de hash distribuídas (DHT) em um formato de anel, como proposto para o projeto.
-
     O contrato implementado por esta classe é muito semelhante ao que foi proposto no enunciado.
 
     A maior dificuldade encontrada no desenvolvimento foi criar testes unitários para validação e coordenar mais de dois nós na rede.
